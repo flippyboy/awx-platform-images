@@ -18,13 +18,16 @@ Companion product repo: **[awx-platform-operator](https://github.com/flippyboy/a
 
 ## Images published (GHCR)
 
-All packages under `ghcr.io/flippyboy/awx/…` (shared namespace with the operator repo):
+All packages under `ghcr.io/flippyboy/awx/…` (shared namespace with the operator repo).
+**Each image has its own release train** (independent git tags and versions):
 
-| Image | Description |
-|-------|-------------|
-| `ghcr.io/flippyboy/awx/platform-ui` | ansible-ui `platform/` workspace + patches |
-| `ghcr.io/flippyboy/awx/jewel-with-ui` | Jewel base + baked Platform UI |
-| `ghcr.io/ansible/awx` | Default Controller (optional rebuild later as `ghcr.io/flippyboy/awx/awx`) |
+| Image | Git tag | Description |
+|-------|---------|-------------|
+| `ghcr.io/flippyboy/awx/platform-ui:X.Y.Z` | `platform-ui-vX.Y.Z` | ansible-ui `platform/` workspace + patches |
+| `ghcr.io/flippyboy/awx/jewel-with-ui:X.Y.Z` | `jewel-with-ui-vX.Y.Z` | Jewel base + baked Platform UI |
+| `ghcr.io/ansible/awx` | — | Default Controller (optional rebuild: `awx-v*` → `ghcr.io/flippyboy/awx/awx`) |
+
+`jewel-with-ui` pulls a **published** `platform-ui` tag at build time (does not rebuild UI in the same release).
 
 ## Layout
 
@@ -60,18 +63,31 @@ Upstream git checkouts for **source** builds (optional):
 ./scripts/fetch-upstream.sh   # clones ansible/* at pins into .upstream/
 ```
 
-## Agent-assisted releases
+## Agent-assisted / per-component releases
 
 See [`release/AGENTS.md`](./release/AGENTS.md). Short version:
 
 ```bash
-# Propose new pins (reads GitHub tags / default branches)
-python release/propose-pins.py --write pins.proposed.yaml
+# Propose new upstream pins
+python release/propose-pins.py --pins pins.yaml --out pins.proposed.yaml
 
-# Agent (or human) reviews pins.proposed.yaml → merges into pins.yaml
-# Then generate notes + tag
-python release/render-notes.py --prev pins.prev.yaml --curr pins.yaml -o release/notes/images-v0.1.0.md
+# After merging pin changes that affect UI only:
+python release/render-notes.py \
+  --prev pins.prev.yaml --curr pins.yaml \
+  --component platform-ui --version 0.1.1 \
+  --out release/notes/platform-ui-v0.1.1.md
+git tag platform-ui-v0.1.1 && git push origin platform-ui-v0.1.1
+
+# Later, rebake jewel with that UI (or after jewel pin moves):
+python release/render-notes.py \
+  --prev pins.prev.yaml --curr pins.yaml \
+  --component jewel-with-ui --version 0.1.1 \
+  --platform-ui-version 0.1.1 \
+  --out release/notes/jewel-with-ui-v0.1.1.md
+git tag jewel-with-ui-v0.1.1 && git push origin jewel-with-ui-v0.1.1
 ```
+
+Or use **Actions → release-images → Run workflow** (component + version).
 
 Steady cadence is defined in `release/cadence.yaml` (e.g. weekly pin bump PR).
 
@@ -79,5 +95,5 @@ Steady cadence is defined in `release/cadence.yaml` (e.g. weekly pin bump PR).
 
 | Repo | Releases |
 |------|----------|
-| **images** | `images-v0.1.0` — component image digests |
-| **operator** | `v0.1.0` — operator image + Helm chart consuming those digests |
+| **images** | Per-component tags (`platform-ui-v…`, `jewel-with-ui-v…`) |
+| **operator** | `v0.1.0` — operator image + Helm; pins only the component versions it needs |

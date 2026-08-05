@@ -13,11 +13,15 @@ REGISTRY          ?= ghcr.io/flippyboy/awx
 help:
 	@echo "Images / compose"
 	@echo "  make build          platform-ui + jewel-with-ui"
+	@echo "  make build-ui       platform-ui only"
+	@echo "  make build-jewel    jewel-with-ui (builds UI first)"
 	@echo "  make up / down      compose stack"
 	@echo "  make trust          JWT bootstrap (compose)"
-	@echo "Release / pins"
+	@echo "Release / pins (per-component tags: platform-ui-v*, jewel-with-ui-v*)"
 	@echo "  make pins-propose   write pins.proposed.yaml"
 	@echo "  make fetch-upstream clone ansible/* at pins into .upstream/"
+	@echo "  git tag platform-ui-vX.Y.Z && git push origin platform-ui-vX.Y.Z"
+	@echo "  git tag jewel-with-ui-vX.Y.Z && git push origin jewel-with-ui-vX.Y.Z"
 
 build-ui:
 	./scripts/prepare-ui-context.sh

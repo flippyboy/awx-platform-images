@@ -1,4 +1,4 @@
-# Steady-cadence policy for agent-assisted pin bumps and releases.
+# Steady-cadence policy for agent-assisted pin bumps and *per-component* releases.
 schema_version: 1
 
 # How often to open "propose pins" PRs (human or agent merges)
@@ -7,28 +7,54 @@ propose_schedule:
   cron: "0 9 * * 1"   # Mondays 09:00 UTC
   description: "Weekly pin proposal against ansible/* default branches / latest tags"
 
+# Each publishable image has its own version track and git tag prefix.
+# Git tag:  <component>-vX.Y.Z
+# Image:    ghcr.io/flippyboy/awx/<component>:X.Y.Z
 release_tracks:
-  images:
-    tag_prefix: "images-v"
-    # After pins merge, cut images-vX.Y.Z when:
+  platform-ui:
+    tag_prefix: "platform-ui-v"
+    image: ghcr.io/flippyboy/awx/platform-ui
     cut_when:
-      - "any pin commit SHA changed since last images release"
+      - "ansible-ui pin commit SHA changed since last platform-ui release"
+      - "docker/platform-ui/** or UI patches changed"
       - "manual workflow_dispatch"
-    artifacts:
-      - platform-ui
-      - jewel-with-ui
-      # awx only if components.awx.build is true
+    depends_on_upstream: [ansible-ui]
+
+  jewel-with-ui:
+    tag_prefix: "jewel-with-ui-v"
+    image: ghcr.io/flippyboy/awx/jewel-with-ui
+    cut_when:
+      - "jewel pin / public_image changed since last jewel-with-ui release"
+      - "docker/jewel/** changed"
+      - "published platform-ui version intentionally bumped for rebake"
+      - "manual workflow_dispatch"
+    depends_on_upstream: [jewel]
+    # Does not rebuild platform-ui; pulls published.platform-ui (or override)
+    bakes: platform-ui
+
+  awx:
+    tag_prefix: "awx-v"
+    image: ghcr.io/flippyboy/awx/awx
+    enabled_when: "components.awx.build is true"
+    cut_when:
+      - "awx pin changed and build is enabled"
+      - "manual workflow_dispatch"
+    depends_on_upstream: [awx]
 
   # Operator repo is separate; document handoff only
   operator_handoff:
     repo: awx-platform-operator
-    action: "Open PR bumping chart image digests + release/pins.consumer.yaml"
+    action: >-
+      Open PR bumping only the changed image(s) in chart values +
+      release/pins.consumer.yaml (other components keep their pins)
 
 # Agent decision preferences (non-binding guidance)
 agent_preferences:
   prefer_commit_sha_over_branch: true
   prefer_annotated_tags_when_present: true
-  max_components_changed_per_release: 3
+  # Prefer releasing only components whose upstream pins actually moved
+  independent_component_releases: true
+  max_components_changed_per_release: 1
   avoid_refs:
     - "HEAD"
     - "latest"   # as git ref; image tags ok

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Render release notes from pin file deltas."""
+"""Render per-component release notes from pin file deltas."""
 from __future__ import annotations
 
 import argparse
@@ -13,6 +13,13 @@ except ImportError:
     print("PyYAML required: pip install pyyaml", file=sys.stderr)
     sys.exit(1)
 
+# Which upstream pins matter for each publishable image
+COMPONENT_UPSTREAM: dict[str, list[str]] = {
+    "platform-ui": ["ansible-ui"],
+    "jewel-with-ui": ["jewel", "ansible-ui"],
+    "awx": ["awx"],
+}
+
 
 def load(path: Path) -> dict:
     return yaml.safe_load(path.read_text(encoding="utf-8"))
@@ -25,48 +32,121 @@ def gh_repo(url: str) -> str:
     return f"{m.group(1)}/{m.group(2)}"
 
 
+def short_ref(val: object) -> str:
+    s = str(val or "—")
+    if len(s) == 40 and re.match(r"^[0-9a-f]{40}$", s):
+        return s[:12]
+    return s
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--prev", type=Path, required=True)
     ap.add_argument("--curr", type=Path, required=True)
-    ap.add_argument("--version", required=True, help="e.g. images-v0.1.0")
+    ap.add_argument(
+        "--component",
+        required=True,
+        choices=sorted(COMPONENT_UPSTREAM),
+        help="Publishable image being released",
+    )
+    ap.add_argument(
+        "--version",
+        required=True,
+        help="Semver for this component, e.g. 0.1.1 (notes title uses <component> <version>)",
+    )
+    ap.add_argument(
+        "--platform-ui-version",
+        default="",
+        help="For jewel-with-ui: platform-ui image tag baked into this release",
+    )
     ap.add_argument("--out", type=Path, required=True)
+    ap.add_argument(
+        "--registry-prefix",
+        default="ghcr.io/flippyboy/awx",
+        help="GHCR prefix for the image line",
+    )
     args = ap.parse_args()
 
+    version = args.version.lstrip("v")
+    component = args.component
     prev, curr = load(args.prev), load(args.curr)
+    prefix = (
+        (curr.get("registry") or {}).get("prefix")
+        or args.registry_prefix
+    )
+    image = f"{prefix}/{component}:{version}"
+    git_tag = f"{component}-v{version}"
+
+    relevant = COMPONENT_UPSTREAM[component]
+    # Prefer derived.release_triggers when present
+    derived = (curr.get("derived") or {}).get(component) or {}
+    if derived.get("release_triggers"):
+        relevant = list(derived["release_triggers"])
+        # still show ansible-ui for jewel notes if platform-ui-version set
+        if component == "jewel-with-ui" and "ansible-ui" not in relevant:
+            pass
+
     lines = [
-        f"# {args.version}",
+        f"# {component} {version}",
+        "",
+        f"Independent component release. Git tag: `{git_tag}`.",
         "",
         f"Generated from pin delta (`{args.prev.name}` → `{args.curr.name}`).",
         "",
-        "## Component pins",
+        "## Image",
         "",
-        "| Component | Previous | New | Upstream |",
-        "|-----------|----------|-----|----------|",
+        f"`{image}`",
+        "",
+    ]
+
+    if component == "jewel-with-ui":
+        pui = args.platform_ui_version.lstrip("v") or (
+            ((curr.get("published") or {}).get("jewel-with-ui") or {}).get(
+                "platform_ui_version"
+            )
+            or ((curr.get("published") or {}).get("platform-ui") or {}).get("version")
+            or "?"
+        )
+        lines += [
+            "## Baked platform-ui",
+            "",
+            f"`{prefix}/platform-ui:{pui}`",
+            "",
+            "This release does **not** rebuild platform-ui; it pulls the published UI image above.",
+            "",
+        ]
+
+    lines += [
+        "## Upstream pins (relevant)",
+        "",
+        "| Upstream | Previous | New | Link |",
+        "|----------|----------|-----|------|",
     ]
 
     pc = prev.get("components") or {}
     cc = curr.get("components") or {}
-    all_names = sorted(set(pc) | set(cc))
     changes = 0
-    for name in all_names:
+    for name in relevant:
         a, b = pc.get(name) or {}, cc.get(name) or {}
-        old_c = (a.get("commit") or a.get("ref") or "—")
-        new_c = (b.get("commit") or b.get("ref") or "—")
-        if isinstance(old_c, str) and len(old_c) > 12 and re.match(r"^[0-9a-f]{40}$", old_c):
-            old_s = old_c[:12]
-        else:
-            old_s = str(old_c)
-        if isinstance(new_c, str) and len(new_c) == 40 and re.match(r"^[0-9a-f]{40}$", new_c):
-            new_s = new_c[:12]
-        else:
-            new_s = str(new_c)
+        if not a and not b:
+            lines.append(f"| {name} | — | — | (not in pins) |")
+            continue
+        old_c = a.get("commit") or a.get("ref") or "—"
+        new_c = b.get("commit") or b.get("ref") or "—"
+        old_s, new_s = short_ref(old_c), short_ref(new_c)
         repo = gh_repo(b.get("repository") or a.get("repository") or "")
         if old_s != new_s:
             changes += 1
             link = ""
-            if repo and len(str(a.get("commit") or "")) == 40 and len(str(b.get("commit") or "")) == 40:
-                link = f"[compare](https://github.com/{repo}/compare/{a.get('commit')}...{b.get('commit')})"
+            if (
+                repo
+                and len(str(a.get("commit") or "")) == 40
+                and len(str(b.get("commit") or "")) == 40
+            ):
+                link = (
+                    f"[compare](https://github.com/{repo}/compare/"
+                    f"{a.get('commit')}...{b.get('commit')})"
+                )
             elif repo:
                 link = f"https://github.com/{repo}"
             lines.append(f"| {name} | `{old_s}` | `{new_s}` | {link} |")
@@ -75,29 +155,25 @@ def main() -> int:
 
     lines += [
         "",
-        f"**{changes}** component pin(s) changed.",
-        "",
-        "## Images to publish",
-        "",
-        "- `platform-ui`",
-        "- `jewel-with-ui`",
-        "- `awx` (only if `components.awx.build: true`)",
+        f"**{changes}** relevant upstream pin(s) changed.",
         "",
         "## Operator handoff",
         "",
-        "1. Copy digests into `awx-platform-operator` → `release/pins.consumer.yaml`",
-        "2. Bump Helm chart default image tags if needed",
-        "3. Cut operator release `vX.Y.Z` after chart PR merges",
+        f"1. Bump **only** `{component}` in `awx-platform-operator` → `release/pins.consumer.yaml`",
+        f"   (tag `{version}` + digest once available).",
+        "2. Update Helm chart default image tag for this component if it is a chart default.",
+        "3. Leave other component pins unchanged — they have independent release trains.",
+        "4. Cut an operator release only when the operator itself or chart defaults need a ship.",
         "",
         "## Notes",
         "",
-        "_Agent/human: add narrative here (why pins moved, known issues)._",
+        "_Agent/human: add narrative here (why this component moved, known issues)._",
         "",
     ]
 
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text("\n".join(lines) + "\n", encoding="utf-8")
-    print(f"Wrote {args.out} ({changes} changes)")
+    print(f"Wrote {args.out} ({changes} relevant pin changes)")
     return 0
 
 

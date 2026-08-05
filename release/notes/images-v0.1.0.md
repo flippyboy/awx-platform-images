@@ -1,3 +1,5 @@
+> **Superseded:** releases are now **per-component** (`platform-ui-v*`, `jewel-with-ui-v*`). See `release/AGENTS.md`.
+
 # awx-platform-images images-v0.1.0
 
 Initial scaffold of **component image build pipelines** and compose testing for modern AWX.

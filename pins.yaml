@@ -5,11 +5,25 @@
 
 schema_version: 1
 updated: "2026-08-05T00:00:00Z"
-notes: "Initial scaffold pins — prefer commit SHAs for release cuts."
+notes: >-
+  Independent per-component releases. Prefer commit SHAs for release cuts.
+  Image versions live under published.* and are cut with tags like
+  platform-ui-v0.1.0 / jewel-with-ui-v0.1.0 (not a single images-v* tag).
 
 registry:
-  # Override ORG when publishing
   prefix: ghcr.io/flippyboy/awx
+
+# Last published image versions (independent tracks — bump only what you release).
+# Image tags are clean semver: ghcr.io/flippyboy/awx/<name>:<version>
+published:
+  platform-ui:
+    version: "0.1.0"
+  jewel-with-ui:
+    version: "0.1.0"
+    # platform-ui image version baked into the last jewel-with-ui release
+    platform_ui_version: "0.1.0"
+  # awx:
+  #   version: "0.1.0"   # only when components.awx.build is true
 
 components:
   awx:
@@ -44,12 +58,18 @@ components:
 
 # Derived images (built only from pins above + this repo Dockerfiles)
 derived:
-  jewel-with-ui:
-    image_name: jewel-with-ui
-    depends_on: [jewel, ansible-ui]
-    dockerfile: docker/jewel/Dockerfile
-
   platform-ui:
     image_name: platform-ui
     depends_on: [ansible-ui]
     dockerfile: docker/platform-ui/Dockerfile
+    # upstream pins that, when changed, justify a platform-ui release
+    release_triggers: [ansible-ui]
+
+  jewel-with-ui:
+    image_name: jewel-with-ui
+    depends_on: [jewel, ansible-ui]
+    dockerfile: docker/jewel/Dockerfile
+    # Uses a *published* platform-ui image tag (see published.jewel-with-ui.platform_ui_version)
+    # rather than rebuilding UI in the same release by default.
+    release_triggers: [jewel]
+    # Also re-release when you intentionally bump platform_ui_version after a UI cut.

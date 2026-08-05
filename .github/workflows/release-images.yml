@@ -1,25 +1,148 @@
 name: release-images
 
+# Independent per-component releases.
+#
+# Git tags (semver after the component prefix):
+#   platform-ui-v0.1.0
+#   jewel-with-ui-v0.2.0
+#   awx-v0.1.0
+#
+# GHCR image tags use clean semver only:
+#   ghcr.io/flippyboy/awx/platform-ui:0.1.0
+#   ghcr.io/flippyboy/awx/jewel-with-ui:0.2.0
+#
+# jewel-with-ui bakes a published platform-ui version (does not rebuild UI
+# unless you release platform-ui first). Override with workflow_dispatch input
+# platform_ui_version, or pins.yaml published.jewel-with-ui.platform_ui_version.
+
 on:
   push:
     tags:
-      - "images-v*"
+      - "platform-ui-v*"
+      - "jewel-with-ui-v*"
+      - "awx-v*"
   workflow_dispatch:
+    inputs:
+      component:
+        description: Image component to build and push
+        required: true
+        type: choice
+        options:
+          - platform-ui
+          - jewel-with-ui
+          - awx
+      version:
+        description: Semver for this component (e.g. 0.1.1) — used as image tag
+        required: true
+        type: string
+      platform_ui_version:
+        description: "For jewel-with-ui only: platform-ui image tag to bake (default from pins.yaml)"
+        required: false
+        type: string
+        default: ""
+      create_github_release:
+        description: Create a GitHub Release for this component
+        required: false
+        type: boolean
+        default: true
 
 permissions:
-  contents: read
+  contents: write
   packages: write
 
 env:
   REGISTRY: ghcr.io
-  # All component images under flippyboy/awx/*
   IMAGE_PREFIX: ghcr.io/flippyboy/awx
 
 jobs:
-  build-push:
+  release-component:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - run: pip install pyyaml
+
+      - name: Resolve component + version
+        id: meta
+        env:
+          REF_NAME: ${{ github.ref_name }}
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_COMPONENT: ${{ github.event.inputs.component }}
+          INPUT_VERSION: ${{ github.event.inputs.version }}
+          INPUT_PLATFORM_UI: ${{ github.event.inputs.platform_ui_version }}
+          IMAGE_PREFIX: ${{ env.IMAGE_PREFIX }}
+        run: |
+          set -euo pipefail
+          python3 <<'PY'
+          import os, re, sys, yaml
+          from pathlib import Path
+
+          event = os.environ["EVENT_NAME"]
+          ref = os.environ.get("REF_NAME", "")
+          prefix = os.environ.get("IMAGE_PREFIX", "ghcr.io/flippyboy/awx")
+
+          pins = yaml.safe_load(Path("pins.yaml").read_text())
+          published = pins.get("published") or {}
+
+          if event == "workflow_dispatch":
+              component = os.environ["INPUT_COMPONENT"].strip()
+              version = os.environ["INPUT_VERSION"].strip().lstrip("v")
+              platform_ui_version = (os.environ.get("INPUT_PLATFORM_UI") or "").strip().lstrip("v")
+          else:
+              # tag: <component>-vX.Y.Z  (component may contain hyphens)
+              m = re.fullmatch(r"(platform-ui|jewel-with-ui|awx)-v(.+)", ref)
+              if not m:
+                  print(f"::error::Tag {ref!r} does not match <component>-v<semver>", file=sys.stderr)
+                  sys.exit(1)
+              component, version = m.group(1), m.group(2)
+              platform_ui_version = ""
+
+          if not re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+([.-].+)?", version):
+              print(f"::error::Version {version!r} must look like semver (e.g. 0.1.0)", file=sys.stderr)
+              sys.exit(1)
+
+          if component == "awx" and not (pins.get("components") or {}).get("awx", {}).get("build"):
+              print("::error::components.awx.build is false; refusing awx image release", file=sys.stderr)
+              sys.exit(1)
+
+          if component == "jewel-with-ui" and not platform_ui_version:
+              jpub = published.get("jewel-with-ui") or {}
+              ppub = published.get("platform-ui") or {}
+              platform_ui_version = (
+                  jpub.get("platform_ui_version")
+                  or ppub.get("version")
+                  or ""
+              )
+              if not platform_ui_version:
+                  print(
+                      "::error::jewel-with-ui needs platform_ui_version "
+                      "(workflow input or pins.yaml published.*.version)",
+                      file=sys.stderr,
+                  )
+                  sys.exit(1)
+
+          git_tag = f"{component}-v{version}"
+          image = f"{prefix}/{component}"
+          sha = f"sha-{os.environ.get('GITHUB_SHA', 'unknown')[:12]}"
+
+          out = os.environ["GITHUB_OUTPUT"]
+          with open(out, "a", encoding="utf-8") as f:
+              f.write(f"component={component}\n")
+              f.write(f"version={version}\n")
+              f.write(f"git_tag={git_tag}\n")
+              f.write(f"image={image}\n")
+              f.write(f"sha_tag={sha}\n")
+              f.write(f"platform_ui_version={platform_ui_version}\n")
+              f.write(f"platform_ui_image={prefix}/platform-ui:{platform_ui_version}\n")
+              f.write(f"release_name={component} {version}\n")
+
+          print(f"component={component} version={version} image={image}")
+          if component == "jewel-with-ui":
+              print(f"baking platform-ui:{platform_ui_version}")
+          PY
 
       - name: Log in to GHCR
         uses: docker/login-action@v4
@@ -28,48 +151,105 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Set tags
-        id: pref
+      - name: Build platform-ui
+        if: steps.meta.outputs.component == 'platform-ui'
         run: |
-          TAG="${GITHUB_REF_NAME:-manual}"
-          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
-          echo "sha=sha-${GITHUB_SHA::12}" >> "$GITHUB_OUTPUT"
-          echo "prefix=${IMAGE_PREFIX}" >> "$GITHUB_OUTPUT"
-
-      - uses: actions/setup-python@v7
-        with:
-          python-version: "3.12"
-      - run: pip install pyyaml
-
-      - name: Prepare UI build context (checkout ansible-ui @ pin)
-        run: |
+          set -euo pipefail
           chmod +x scripts/prepare-ui-context.sh
           ./scripts/prepare-ui-context.sh
-
-      - name: Build platform-ui
-        run: |
           CTX=.build/ui-context
           docker build -f "$CTX/docker/platform-ui/Dockerfile" \
-            -t ${{ steps.pref.outputs.prefix }}/platform-ui:${{ steps.pref.outputs.tag }} \
-            -t ${{ steps.pref.outputs.prefix }}/platform-ui:${{ steps.pref.outputs.sha }} \
+            -t "${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.version }}" \
+            -t "${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.sha_tag }}" \
+            -t "${{ steps.meta.outputs.image }}:latest" \
             "$CTX"
 
       - name: Build jewel-with-ui
-        run: |
-          docker build -f docker/jewel/Dockerfile \
-            --build-arg JEWEL_BASE=ghcr.io/ansible/jewel:latest \
-            --build-arg UI_IMAGE=${{ steps.pref.outputs.prefix }}/platform-ui:${{ steps.pref.outputs.tag }} \
-            -t ${{ steps.pref.outputs.prefix }}/jewel-with-ui:${{ steps.pref.outputs.tag }} \
-            -t ${{ steps.pref.outputs.prefix }}/jewel-with-ui:${{ steps.pref.outputs.sha }} \
-            .
-
-      - name: Push packages under flippyboy/awx/*
+        if: steps.meta.outputs.component == 'jewel-with-ui'
         run: |
           set -euo pipefail
-          PREFIX="${{ steps.pref.outputs.prefix }}"
-          TAG="${{ steps.pref.outputs.tag }}"
-          SHA="${{ steps.pref.outputs.sha }}"
-          for img in platform-ui jewel-with-ui; do
-            docker push "${PREFIX}/${img}:${TAG}"
-            docker push "${PREFIX}/${img}:${SHA}"
+          UI_IMAGE="${{ steps.meta.outputs.platform_ui_image }}"
+          echo "Pulling published UI image: ${UI_IMAGE}"
+          docker pull "${UI_IMAGE}"
+          docker build -f docker/jewel/Dockerfile \
+            --build-arg JEWEL_BASE=ghcr.io/ansible/jewel:latest \
+            --build-arg UI_IMAGE="${UI_IMAGE}" \
+            -t "${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.version }}" \
+            -t "${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.sha_tag }}" \
+            -t "${{ steps.meta.outputs.image }}:latest" \
+            .
+
+      - name: Build awx
+        if: steps.meta.outputs.component == 'awx'
+        run: |
+          set -euo pipefail
+          docker build -f docker/awx/Dockerfile \
+            -t "${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.version }}" \
+            -t "${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.sha_tag }}" \
+            -t "${{ steps.meta.outputs.image }}:latest" \
+            .
+
+      - name: Push component image
+        run: |
+          set -euo pipefail
+          IMG="${{ steps.meta.outputs.image }}"
+          for t in \
+            "${{ steps.meta.outputs.version }}" \
+            "${{ steps.meta.outputs.sha_tag }}" \
+            latest
+          do
+            docker push "${IMG}:${t}"
           done
+          echo "Pushed ${IMG}:{${{ steps.meta.outputs.version }},${{ steps.meta.outputs.sha_tag }},latest}"
+
+      - name: Write release notes stub
+        id: notes
+        run: |
+          set -euo pipefail
+          COMP="${{ steps.meta.outputs.component }}"
+          VER="${{ steps.meta.outputs.version }}"
+          NOTES="release/notes/${COMP}-v${VER}.md"
+          mkdir -p release/notes
+          if [[ -f "$NOTES" ]]; then
+            echo "Using existing $NOTES"
+          else
+            {
+              echo "# ${COMP} ${VER}"
+              echo ""
+              echo "Independent component release."
+              echo ""
+              echo "## Image"
+              echo ""
+              echo "\`${{ steps.meta.outputs.image }}:${VER}\`"
+              echo ""
+              if [[ "$COMP" == "jewel-with-ui" ]]; then
+                echo "## Baked platform-ui"
+                echo ""
+                echo "\`${{ steps.meta.outputs.platform_ui_image }}\`"
+                echo ""
+              fi
+              echo "## Pins"
+              echo ""
+              echo "See \`pins.yaml\` at commit \`${GITHUB_SHA::12}\`."
+              echo ""
+              echo "## Operator handoff"
+              echo ""
+              echo "Bump only this image in \`awx-platform-operator\` → \`release/pins.consumer.yaml\`"
+              echo "(\`${COMP}\` tag/digest). Other components can stay on their previous pins."
+              echo ""
+            } > "$NOTES"
+          fi
+          echo "path=${NOTES}" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release
+        if: >
+          github.event_name == 'push' ||
+          github.event.inputs.create_github_release == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.meta.outputs.git_tag }}
+          name: ${{ steps.meta.outputs.release_name }}
+          body_path: ${{ steps.notes.outputs.path }}
+          generate_release_notes: true
+          # For workflow_dispatch without a pre-existing tag, create the tag at this SHA
+          target_commitish: ${{ github.sha }}
