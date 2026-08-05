@@ -1,0 +1,70 @@
+name: cleanup-packages
+
+# Delete obsolete GHCR packages (wrong namespace from early releases).
+# Safe defaults only remove known-old top-level package names — not flippyboy/awx/*.
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "If true, list targets only (no delete)"
+        type: boolean
+        default: true
+      packages:
+        description: "Comma-separated package names under the user namespace (e.g. platform-ui,jewel-with-ui)"
+        type: string
+        default: "platform-ui,jewel-with-ui"
+
+permissions:
+  packages: write
+  contents: read
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete obsolete user packages
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DRY_RUN: ${{ inputs.dry_run }}
+          PACKAGES: ${{ inputs.packages }}
+          OWNER: ${{ github.repository_owner }}
+        run: |
+          set -euo pipefail
+          IFS=',' read -ra NAMES <<< "${PACKAGES}"
+          for raw in "${NAMES[@]}"; do
+            name="$(echo "$raw" | xargs)"
+            [[ -z "$name" ]] && continue
+            # Refuse to delete namespaced packages under awx/ via this workflow
+            if [[ "$name" == awx/* ]]; then
+              echo "skip (protected namespace): $name"
+              continue
+            fi
+            echo "=== package: ${OWNER}/${name} ==="
+            # List versions (user-owned package)
+            if ! versions=$(gh api "users/${OWNER}/packages/container/${name}/versions" --paginate 2>/dev/null); then
+              # URL-encode slashes if any remain
+              enc=$(python3 -c "import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1], safe=''))" "$name")
+              versions=$(gh api "users/${OWNER}/packages/container/${enc}/versions" --paginate 2>/dev/null || echo "[]")
+            fi
+            count=$(echo "$versions" | python3 -c 'import sys,json; d=json.load(sys.stdin); print(len(d) if isinstance(d,list) else 0)')
+            echo "versions: $count"
+            if [[ "${DRY_RUN}" == "true" ]]; then
+              echo "$versions" | python3 -c 'import sys,json
+try:
+  d=json.load(sys.stdin)
+except Exception:
+  d=[]
+for v in d if isinstance(d,list) else []:
+  tags=",".join(v.get("metadata",{}).get("container",{}).get("tags") or []) or "(untagged)"
+  print(f"  id={v.get(\"id\")} tags={tags} updated={v.get(\"updated_at\")}")
+'
+              echo "(dry-run) would DELETE entire package users/${OWNER}/packages/container/${name}"
+              continue
+            fi
+            enc=$(python3 -c "import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1], safe=''))" "$name")
+            echo "Deleting package users/${OWNER}/packages/container/${enc}"
+            gh api -X DELETE "users/${OWNER}/packages/container/${enc}" \
+              && echo "deleted $name" \
+              || echo "failed to delete $name (may not exist or insufficient perms)"
+          done
