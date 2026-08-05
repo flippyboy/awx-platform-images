@@ -12,8 +12,8 @@ Initial scaffold of **component image build pipelines** and compose testing for 
 
 | Image | Description |
 |-------|-------------|
-| `ghcr.io/flippyboy/platform-ui` | Platform UI from ansible-ui + open-license patches |
-| `ghcr.io/flippyboy/jewel-with-ui` | Jewel + baked Platform UI |
+| `ghcr.io/flippyboy/awx/platform-ui` | Platform UI from ansible-ui + open-license patches |
+| `ghcr.io/flippyboy/awx/jewel-with-ui` | Jewel + baked Platform UI |
 | `ghcr.io/ansible/awx` (public) | Default Controller image; optional rebuild later |
 
 ## Tooling

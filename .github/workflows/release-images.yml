@@ -12,6 +12,8 @@ permissions:
 
 env:
   REGISTRY: ghcr.io
+  # All component images under flippyboy/awx/*
+  IMAGE_PREFIX: ghcr.io/flippyboy/awx
 
 jobs:
   build-push:
@@ -26,12 +28,13 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Set image prefix
+      - name: Set tags
         id: pref
         run: |
-          # ghcr.io/org/repo → ghcr.io/org
-          echo "prefix=${REGISTRY}/${GITHUB_REPOSITORY%/*}" >> "$GITHUB_OUTPUT"
-          echo "tag=${GITHUB_REF_NAME:-manual}" >> "$GITHUB_OUTPUT"
+          TAG="${GITHUB_REF_NAME:-manual}"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "sha=sha-${GITHUB_SHA::12}" >> "$GITHUB_OUTPUT"
+          echo "prefix=${IMAGE_PREFIX}" >> "$GITHUB_OUTPUT"
 
       - uses: actions/setup-python@v7
         with:
@@ -48,7 +51,7 @@ jobs:
           CTX=.build/ui-context
           docker build -f "$CTX/docker/platform-ui/Dockerfile" \
             -t ${{ steps.pref.outputs.prefix }}/platform-ui:${{ steps.pref.outputs.tag }} \
-            -t ${{ steps.pref.outputs.prefix }}/platform-ui:sha-${GITHUB_SHA::12} \
+            -t ${{ steps.pref.outputs.prefix }}/platform-ui:${{ steps.pref.outputs.sha }} \
             "$CTX"
 
       - name: Build jewel-with-ui
@@ -57,12 +60,16 @@ jobs:
             --build-arg JEWEL_BASE=ghcr.io/ansible/jewel:latest \
             --build-arg UI_IMAGE=${{ steps.pref.outputs.prefix }}/platform-ui:${{ steps.pref.outputs.tag }} \
             -t ${{ steps.pref.outputs.prefix }}/jewel-with-ui:${{ steps.pref.outputs.tag }} \
-            -t ${{ steps.pref.outputs.prefix }}/jewel-with-ui:sha-${GITHUB_SHA::12} \
+            -t ${{ steps.pref.outputs.prefix }}/jewel-with-ui:${{ steps.pref.outputs.sha }} \
             .
 
-      - name: Push
+      - name: Push packages under flippyboy/awx/*
         run: |
-          docker push ${{ steps.pref.outputs.prefix }}/platform-ui:${{ steps.pref.outputs.tag }}
-          docker push ${{ steps.pref.outputs.prefix }}/platform-ui:sha-${GITHUB_SHA::12}
-          docker push ${{ steps.pref.outputs.prefix }}/jewel-with-ui:${{ steps.pref.outputs.tag }}
-          docker push ${{ steps.pref.outputs.prefix }}/jewel-with-ui:sha-${GITHUB_SHA::12}
+          set -euo pipefail
+          PREFIX="${{ steps.pref.outputs.prefix }}"
+          TAG="${{ steps.pref.outputs.tag }}"
+          SHA="${{ steps.pref.outputs.sha }}"
+          for img in platform-ui jewel-with-ui; do
+            docker push "${PREFIX}/${img}:${TAG}"
+            docker push "${PREFIX}/${img}:${SHA}"
+          done

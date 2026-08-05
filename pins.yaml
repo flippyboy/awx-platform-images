@@ -9,7 +9,7 @@ notes: "Initial scaffold pins — prefer commit SHAs for release cuts."
 
 registry:
   # Override ORG when publishing
-  prefix: ghcr.io/flippyboy
+  prefix: ghcr.io/flippyboy/awx
 
 components:
   awx:

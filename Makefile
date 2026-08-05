@@ -6,7 +6,7 @@ PLATFORM_UI_IMAGE ?= awx-compose/platform-ui:local
 JEWEL_IMAGE       ?= awx-compose/jewel:local
 JEWEL_BASE_IMAGE  ?= ghcr.io/ansible/jewel:latest
 AWX_IMAGE         ?= ghcr.io/ansible/awx:devel
-REGISTRY          ?= ghcr.io/flippyboy
+REGISTRY          ?= ghcr.io/flippyboy/awx
 
 .PHONY: help build build-ui build-jewel up down trust pins-propose notes fetch-upstream
 

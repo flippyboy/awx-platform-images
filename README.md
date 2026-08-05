@@ -18,11 +18,13 @@ Companion product repo: **[awx-platform-operator](https://github.com/flippyboy/a
 
 ## Images published (GHCR)
 
+All packages under `ghcr.io/flippyboy/awx/…` (shared namespace with the operator repo):
+
 | Image | Description |
 |-------|-------------|
-| `platform-ui` | ansible-ui `platform/` workspace + patches |
-| `jewel-with-ui` | Jewel base + baked Platform UI |
-| `awx` | Optional rebuild of Controller (or skip and use public `ghcr.io/ansible/awx`) |
+| `ghcr.io/flippyboy/awx/platform-ui` | ansible-ui `platform/` workspace + patches |
+| `ghcr.io/flippyboy/awx/jewel-with-ui` | Jewel base + baked Platform UI |
+| `ghcr.io/ansible/awx` | Default Controller (optional rebuild later as `ghcr.io/flippyboy/awx/awx`) |
 
 ## Layout
 
