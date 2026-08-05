@@ -14,8 +14,8 @@ jobs:
   propose:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
       - run: pip install pyyaml
@@ -34,14 +34,14 @@ jobs:
             --version images-proposed \
             --out release/notes/PROPOSED.md
       - name: Upload proposal
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: pins-proposal
           path: |
             pins.proposed.yaml
             release/notes/PROPOSED.md
       - name: Create PR if changed
-        uses: peter-evans/create-pull-request@v6
+        uses: peter-evans/create-pull-request@v8
         with:
           commit-message: "chore(pins): weekly proposed pin update"
           title: "chore(pins): weekly proposed update"
