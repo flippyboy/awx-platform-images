@@ -1,0 +1,11 @@
+.upstream/
+.build/
+.venv/
+__pycache__/
+*.pyc
+.env
+secrets/
+pins.prev.yaml
+pins.proposed.yaml
+node_modules/
+*.tar

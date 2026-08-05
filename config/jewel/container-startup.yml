@@ -1,0 +1,4 @@
+---
+gateway_admin_username: admin
+gateway_admin_password: admin
+gateway_node_count: 1

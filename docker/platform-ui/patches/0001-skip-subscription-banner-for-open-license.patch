@@ -1,0 +1,28 @@
+diff --git a/platform/main/PlatformApp.tsx b/platform/main/PlatformApp.tsx
+index 13a7b43..1b89d70 100644
+--- a/platform/main/PlatformApp.tsx
++++ b/platform/main/PlatformApp.tsx
+@@ -74,6 +74,11 @@ export function PlatformApp() {
+     // Hide compliance banners for non-admin users - they cannot act on compliance issues
+     if (!activePlatformUser?.is_superuser) return null;
+     if (!awxConfig?.license_info || managedCloudInstall) return null;
++    // Upstream AWX / open-source builds have no Red Hat subscription to enforce.
++    // OpenLicense returns license_type "open" without AAP compliance fields — do not
++    // treat missing `compliant` as a subscription violation.
++    const licenseType = awxConfig.license_info.license_type;
++    if (licenseType === 'open' || licenseType === 'OPEN') return null;
+     if (!awxConfig.license_info.compliant) {
+       if (awxConfig.license_info.grace_period_remaining) {
+         return (
+@@ -99,7 +104,10 @@ export function PlatformApp() {
+         >{t`Your subscription is out of compliance. `}</Banner>
+       );
+     }
+-    if (awxConfig.license_info.time_remaining < 15 * 24 * 60 * 60) {
++    if (
++      typeof awxConfig.license_info.time_remaining === 'number' &&
++      awxConfig.license_info.time_remaining < 15 * 24 * 60 * 60
++    ) {
+       return (
+         <Banner
+           data-cy="subscription-time-remaining-banner"

@@ -1,0 +1,142 @@
+# AWX Compose — Controller + Jewel + Platform UI
+#
+#   make build   # build platform-ui + jewel-with-ui images
+#   make up      # start the full stack
+#   make down    # stop and remove containers
+#   make logs    # follow logs
+#   make ps      # show status
+
+# Prefer `docker compose` plugin; fall back to standalone docker-compose binary
+COMPOSE ?= $(shell docker compose version >/dev/null 2>&1 && echo "docker compose" || echo "docker-compose")
+DOCKER  ?= docker
+
+PLATFORM_UI_IMAGE ?= awx-compose/platform-ui:local
+JEWEL_IMAGE       ?= awx-compose/jewel:local
+JEWEL_BASE_IMAGE  ?= ghcr.io/ansible/jewel:latest
+AWX_IMAGE         ?= ghcr.io/ansible/awx:devel
+
+.PHONY: help secrets pull build build-ui build-jewel build-controller up down \
+        restart logs ps bootstrap trust clean clean-volumes shell-jewel shell-awx
+
+help:
+	@echo "AWX Compose — see README.md and docs/DISCOVERIES.md for full docs."
+	@echo ""
+	@echo "Targets:"
+	@echo "  make secrets           Generate secrets/certs if missing"
+	@echo "  make pull              Pull base images (awx, jewel, etc.)"
+	@echo "  make build             Build platform-ui + jewel-with-ui"
+	@echo "  make build-ui          Build platform-ui only (applies docker/platform-ui/patches)"
+	@echo "  make build-jewel       Build jewel-with-ui (requires platform-ui)"
+	@echo "  make build-controller  Build controller from source (optional, slow)"
+	@echo "  make up                Start the stack (builds if needed)"
+	@echo "  make down              Stop containers"
+	@echo "  make restart           down + up"
+	@echo "  make logs              Follow all logs"
+	@echo "  make ps                Container status"
+	@echo "  make bootstrap         Re-run Jewel service registration"
+	@echo "  make trust             JWT trust Jewel↔Controller (fixes UI 401)"
+	@echo "  make clean             Remove built images"
+	@echo "  make clean-volumes     down -v (DESTROYS DATA)"
+
+secrets:
+	@mkdir -p secrets
+	@if [ ! -f secrets/awx_secret_key ]; then openssl rand -base64 32 | tr -d '\n' > secrets/awx_secret_key; fi
+	@if [ ! -f secrets/jewel_secret_key ]; then openssl rand -base64 32 | tr -d '\n' > secrets/jewel_secret_key; fi
+	@if [ ! -f secrets/admin_password ]; then echo -n admin > secrets/admin_password; fi
+	@if [ ! -f secrets/tls.crt ] || [ ! -f secrets/tls.key ]; then \
+		openssl req -nodes -newkey rsa:2048 -keyout secrets/tls.key -out /tmp/awx-compose.csr \
+		  -subj "/C=US/ST=NC/L=Durham/O=AWX-Compose/CN=localhost" 2>/dev/null; \
+		openssl x509 -req -days 3650 -in /tmp/awx-compose.csr -signkey secrets/tls.key \
+		  -out secrets/tls.crt 2>/dev/null; \
+		rm -f /tmp/awx-compose.csr; \
+		chmod 644 secrets/tls.crt secrets/tls.key; \
+	fi
+	@chmod +x scripts/*.sh config/postgres/init-databases.sh 2>/dev/null || true
+	@echo "Secrets ready under ./secrets/"
+
+pull:
+	$(DOCKER) pull $(AWX_IMAGE)
+	$(DOCKER) pull $(JEWEL_BASE_IMAGE)
+	$(DOCKER) pull quay.io/ansible/receptor:latest || true
+	$(DOCKER) pull mirror.gcr.io/library/postgres:15
+	$(DOCKER) pull mirror.gcr.io/library/redis:7.4
+	$(DOCKER) pull mirror.gcr.io/envoyproxy/envoy:v1.36.6
+	$(DOCKER) pull node:22-bookworm
+	$(DOCKER) pull nginx:1.27-alpine
+
+build-ui: secrets
+	$(DOCKER) build -f docker/platform-ui/Dockerfile -t $(PLATFORM_UI_IMAGE) .
+
+build-jewel: build-ui
+	$(DOCKER) build -f docker/jewel/Dockerfile \
+		--build-arg JEWEL_BASE=$(JEWEL_BASE_IMAGE) \
+		--build-arg UI_IMAGE=$(PLATFORM_UI_IMAGE) \
+		-t $(JEWEL_IMAGE) .
+
+build: build-jewel
+	@echo "Built $(PLATFORM_UI_IMAGE) and $(JEWEL_IMAGE)"
+
+# Optional: build controller from local source (requires ansible + make Dockerfile)
+build-controller:
+	cd controller && $(MAKE) Dockerfile HEADLESS=1
+	cd controller && DOCKER_BUILDKIT=1 $(DOCKER) build -f Dockerfile \
+		--build-arg HEADLESS=true \
+		-t awx-compose/controller:local .
+	@echo "Built awx-compose/controller:local — set AWX_IMAGE=awx-compose/controller:local in .env"
+
+up: secrets
+	$(COMPOSE) up -d --build --remove-orphans
+	@echo ""
+	@echo "Stack starting. After healthchecks (and first-time migrations):"
+	@echo "  1. make trust            # JWT trust Jewel ↔ Controller"
+	@echo "  2. Open https://localhost   ← Platform UI via Envoy (required)"
+	@echo "     Login: admin / admin"
+	@echo ""
+	@echo "Notes:"
+	@echo "  - https://localhost:8000 is Jewel only; Controller is NOT proxied there."
+	@echo "  - Use https://localhost (port 443) so Envoy injects JWT for Controller."
+	@echo "  - http://localhost:8052 is Controller direct (debug)."
+
+down:
+	$(COMPOSE) down --remove-orphans
+
+restart: down up
+
+logs:
+	$(COMPOSE) logs -f --tail=200
+
+ps:
+	$(COMPOSE) ps -a
+
+bootstrap:
+	$(COMPOSE) run --rm bootstrap
+
+## Establish JWT trust between Jewel and Controller (fixes "misconfigured JWT key" UI errors)
+trust: secrets
+	@mkdir -p secrets
+	@echo ">> Fetch Controller ServiceID..."
+	@SID=$$($(COMPOSE) exec -T controller-web awx-manage shell -c 'from ansible_base.resource_registry.models.service_identifier import ServiceID; print(ServiceID.objects.first().id)' 2>/dev/null | tail -1 | tr -d '\r'); \
+	  echo "   ServiceID=$$SID"; \
+	  printf '%s' "$$SID" > secrets/controller_service_id; \
+	  echo ">> Set service_id on Jewel controller cluster..."; \
+	  $(COMPOSE) exec -T jewel bash -c "cat > /tmp/set_sid.py <<'PY'\nfrom aap_gateway_api.models import ServiceCluster\nimport os\nsc = ServiceCluster.objects.get(name='controller')\nsc.service_id = os.environ['SID']\nsc.save()\nprint('service_id=', sc.service_id)\nPY"; \
+	  $(COMPOSE) exec -T -e SID="$$SID" jewel bash -c 'aap-gateway-manage shell < /tmp/set_sid.py' 2>/dev/null | tail -5; \
+	  echo ">> Generate service secret..."; \
+	  SECRET=$$($(COMPOSE) exec -T jewel aap-gateway-manage generate_service_secret controller 2>/dev/null | tail -1 | tr -d '\r'); \
+	  printf '%s' "$$SECRET" > secrets/controller_service_secret; \
+	  echo "   secret length=$${#SECRET}"; \
+	  echo ">> Restart controller to load RESOURCE_SERVER + ANSIBLE_BASE_JWT_KEY..."; \
+	  $(COMPOSE) up -d --force-recreate controller-web controller-task; \
+	  echo ">> Done. Open https://localhost  (not :8000) and log in as admin."
+
+clean:
+	-$(DOCKER) rmi $(PLATFORM_UI_IMAGE) $(JEWEL_IMAGE) awx-compose/controller:local 2>/dev/null || true
+
+clean-volumes: down
+	$(COMPOSE) down -v --remove-orphans
+
+shell-jewel:
+	$(COMPOSE) exec jewel bash || $(COMPOSE) exec jewel sh
+
+shell-awx:
+	$(COMPOSE) exec controller-web bash || $(COMPOSE) exec controller-web sh

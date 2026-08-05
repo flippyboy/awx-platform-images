@@ -1,0 +1,59 @@
+name: propose-pins
+
+# Steady cadence: open an artifact with proposed pins for agent/human review.
+on:
+  schedule:
+    - cron: "0 9 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  propose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install pyyaml
+      - name: Propose pins
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cp pins.yaml pins.prev.yaml
+          python release/propose-pins.py \
+            --pins pins.yaml \
+            --out pins.proposed.yaml \
+            --prefer-semver-tags
+          python release/render-notes.py \
+            --prev pins.prev.yaml \
+            --curr pins.proposed.yaml \
+            --version images-proposed \
+            --out release/notes/PROPOSED.md
+      - name: Upload proposal
+        uses: actions/upload-artifact@v4
+        with:
+          name: pins-proposal
+          path: |
+            pins.proposed.yaml
+            release/notes/PROPOSED.md
+      - name: Create PR if changed
+        uses: peter-evans/create-pull-request@v6
+        with:
+          commit-message: "chore(pins): weekly proposed pin update"
+          title: "chore(pins): weekly proposed update"
+          body: |
+            Automated pin proposal. **Review before merge.**
+
+            - See `pins.proposed.yaml` (applied as `pins.yaml` in this PR if accepted)
+            - Draft notes: `release/notes/PROPOSED.md`
+            - Agent guide: `release/AGENTS.md`
+          branch: chore/pins-proposal
+          add-paths: |
+            pins.yaml
+            release/notes/PROPOSED.md
+        # Note: create-pull-request may need the proposal applied to pins.yaml;
+        # agents can replace this step with a reviewed merge.

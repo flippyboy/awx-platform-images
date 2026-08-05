@@ -1,0 +1,41 @@
+# Steady-cadence policy for agent-assisted pin bumps and releases.
+schema_version: 1
+
+# How often to open "propose pins" PRs (human or agent merges)
+propose_schedule:
+  # GitHub Actions cron (UTC)
+  cron: "0 9 * * 1"   # Mondays 09:00 UTC
+  description: "Weekly pin proposal against ansible/* default branches / latest tags"
+
+release_tracks:
+  images:
+    tag_prefix: "images-v"
+    # After pins merge, cut images-vX.Y.Z when:
+    cut_when:
+      - "any pin commit SHA changed since last images release"
+      - "manual workflow_dispatch"
+    artifacts:
+      - platform-ui
+      - jewel-with-ui
+      # awx only if components.awx.build is true
+
+  # Operator repo is separate; document handoff only
+  operator_handoff:
+    repo: awx-platform-operator
+    action: "Open PR bumping chart image digests + release/pins.consumer.yaml"
+
+# Agent decision preferences (non-binding guidance)
+agent_preferences:
+  prefer_commit_sha_over_branch: true
+  prefer_annotated_tags_when_present: true
+  max_components_changed_per_release: 3
+  avoid_refs:
+    - "HEAD"
+    - "latest"   # as git ref; image tags ok
+  stability:
+    # If upstream tag matches vMAJOR.MINOR.*, prefer newest such tag over floating branch
+    prefer_semver_tags: true
+    semver_tag_globs:
+      awx: ["v[0-9]*", "[0-9]*"]
+      jewel: ["v[0-9]*"]
+      ansible-ui: ["v[0-9]*"]

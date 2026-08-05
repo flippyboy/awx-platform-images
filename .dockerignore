@@ -1,0 +1,16 @@
+# Keep build context small
+**/.git
+**/node_modules
+**/dist
+**/coverage
+**/.nyc_output
+**/__pycache__
+**/*.pyc
+**/.tox
+**/tools/generated
+**/tools/docker-compose/_sources
+controller/Dockerfile
+controller/Dockerfile.dev
+jewel/django-ansible-base
+*.log
+.env.local

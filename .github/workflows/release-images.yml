@@ -1,0 +1,68 @@
+name: release-images
+
+on:
+  push:
+    tags:
+      - "images-v*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  build-push:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set image prefix
+        id: pref
+        run: |
+          # ghcr.io/org/repo → ghcr.io/org
+          echo "prefix=${REGISTRY}/${GITHUB_REPOSITORY%/*}" >> "$GITHUB_OUTPUT"
+          echo "tag=${GITHUB_REF_NAME:-manual}" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install pyyaml
+
+      - name: Prepare UI build context (checkout ansible-ui @ pin)
+        run: |
+          chmod +x scripts/prepare-ui-context.sh
+          ./scripts/prepare-ui-context.sh
+
+      - name: Build platform-ui
+        run: |
+          CTX=.build/ui-context
+          docker build -f "$CTX/docker/platform-ui/Dockerfile" \
+            -t ${{ steps.pref.outputs.prefix }}/platform-ui:${{ steps.pref.outputs.tag }} \
+            -t ${{ steps.pref.outputs.prefix }}/platform-ui:sha-${GITHUB_SHA::12} \
+            "$CTX"
+
+      - name: Build jewel-with-ui
+        run: |
+          docker build -f docker/jewel/Dockerfile \
+            --build-arg JEWEL_BASE=ghcr.io/ansible/jewel:latest \
+            --build-arg UI_IMAGE=${{ steps.pref.outputs.prefix }}/platform-ui:${{ steps.pref.outputs.tag }} \
+            -t ${{ steps.pref.outputs.prefix }}/jewel-with-ui:${{ steps.pref.outputs.tag }} \
+            -t ${{ steps.pref.outputs.prefix }}/jewel-with-ui:sha-${GITHUB_SHA::12} \
+            .
+
+      - name: Push
+        run: |
+          docker push ${{ steps.pref.outputs.prefix }}/platform-ui:${{ steps.pref.outputs.tag }}
+          docker push ${{ steps.pref.outputs.prefix }}/platform-ui:sha-${GITHUB_SHA::12}
+          docker push ${{ steps.pref.outputs.prefix }}/jewel-with-ui:${{ steps.pref.outputs.tag }}
+          docker push ${{ steps.pref.outputs.prefix }}/jewel-with-ui:sha-${GITHUB_SHA::12}
