@@ -31,8 +31,10 @@ jobs:
           python release/render-notes.py \
             --prev pins.prev.yaml \
             --curr pins.proposed.yaml \
-            --version images-proposed \
+            --proposal \
             --out release/notes/PROPOSED.md
+          # PR reviews pins.yaml; keep the proposal file as an artifact only.
+          cp pins.proposed.yaml pins.yaml
       - name: Upload proposal
         uses: actions/upload-artifact@v7
         with:
@@ -46,14 +48,14 @@ jobs:
           commit-message: "chore(pins): weekly proposed pin update"
           title: "chore(pins): weekly proposed update"
           body: |
-            Automated pin proposal. **Review before merge.**
+            Automated pin proposal. **Review before merge.** This is not a release.
 
-            - See `pins.proposed.yaml` (applied as `pins.yaml` in this PR if accepted)
+            - `pins.yaml` has proposed upstream SHAs/tags
             - Draft notes: `release/notes/PROPOSED.md`
             - Agent guide: `release/AGENTS.md`
+
+            Cut component tags (`platform-ui-v*`, `jewel-with-ui-v*`) only after review.
           branch: chore/pins-proposal
           add-paths: |
             pins.yaml
             release/notes/PROPOSED.md
-        # Note: create-pull-request may need the proposal applied to pins.yaml;
-        # agents can replace this step with a reviewed merge.
