@@ -26,12 +26,12 @@ jobs:
           cp pins.yaml pins.prev.yaml
           python release/propose-pins.py \
             --pins pins.yaml \
-            --out pins.proposed.yaml \
-            --prefer-semver-tags
+            --out pins.proposed.yaml
           python release/render-notes.py \
             --prev pins.prev.yaml \
             --curr pins.proposed.yaml \
             --proposal \
+            --github-token "$GITHUB_TOKEN" \
             --out release/notes/PROPOSED.md
           # PR reviews pins.yaml; keep the proposal file as an artifact only.
           cp pins.proposed.yaml pins.yaml
@@ -45,16 +45,21 @@ jobs:
       - name: Create PR if changed
         uses: peter-evans/create-pull-request@v8
         with:
-          commit-message: "chore(pins): weekly proposed pin update"
-          title: "chore(pins): weekly proposed update"
+          commit-message: "chore(pins): propose devel/main pin update"
+          title: "chore(pins): propose development-branch pins"
           body: |
-            Automated pin proposal. **Review before merge.** This is not a release.
+            Automated proposal of **development-branch** pins (`devel` or `main`).
+            Stable and semver image tags are not used — those releases are years
+            behind where new features land.
 
-            - `pins.yaml` has proposed upstream SHAs/tags
-            - Draft notes: `release/notes/PROPOSED.md`
+            **Review before merge.** This is the input for a pinned release, not the release.
+
+            - `pins.yaml` — tip commit of each development branch, plus `public_image_digest` of the floating `devel` / `latest` image
+            - `release/notes/PROPOSED.md` — upstream commits since the current pins (the changelog) and which component tag to cut
             - Agent guide: `release/AGENTS.md`
 
-            Cut component tags (`platform-ui-v*`, `jewel-with-ui-v*`) only after review.
+            After review, cut only the component whose pins moved
+            (`platform-ui-v*`, `jewel-with-ui-v*`) and keep the upstream commit list in its release notes.
           branch: chore/pins-proposal
           add-paths: |
             pins.yaml

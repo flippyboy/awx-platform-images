@@ -1,5 +1,6 @@
 # Jewel (gateway) settings overrides for docker-compose
 import os
+import sys
 
 DEBUG = False
 ALLOWED_HOSTS = ['*']
@@ -66,3 +67,20 @@ CACHES = {
         'LOCATION': '/var/tmp/django_cache',
     },
 }
+
+# ---------------------------------------------------------------------------
+# About dialog: "Ansible Automation Platform <version>"
+#
+# Gateway ping calls get_aap_version(), which is "Unknown" when the image
+# has no package metadata. That helper also truncates x.y.z to x.y, so the
+# replacement returns the full named version (PLATFORM_VERSION overrides).
+# ---------------------------------------------------------------------------
+try:
+    _about_dir = '/etc/awx-platform'
+    if _about_dir not in sys.path:
+        sys.path.insert(0, _about_dir)
+    from about_version import install_platform_version
+
+    install_platform_version()
+except Exception as _about_exc:
+    print(f'awx-platform: platform version override skipped: {_about_exc}', file=sys.stderr)

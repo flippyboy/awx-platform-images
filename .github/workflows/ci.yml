@@ -16,11 +16,14 @@ jobs:
       - run: pip install pyyaml
       - name: Validate pins.yaml loads
         run: python -c "import yaml; yaml.safe_load(open('pins.yaml')); print('ok')"
+      - name: Pin policy unit tests
+        run: python release/test_upstream.py
+      - name: About dialog version unit tests
+        run: python config/test_about_version.py
       - name: propose-pins dry-run (no write required)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          python release/propose-pins.py --pins pins.yaml --out /tmp/pins.proposed.yaml || true
+        run: python release/propose-pins.py --pins pins.yaml --out /tmp/pins.proposed.yaml
 
   docker-build:
     runs-on: ubuntu-latest

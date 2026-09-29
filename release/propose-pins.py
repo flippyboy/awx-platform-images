@@ -1,18 +1,19 @@
 #!/usr/bin/env python3
 """Propose updated upstream pins for awx-platform-images.
 
-Fetches default branch tip (and optionally latest semver tags) from GitHub
-without cloning full repos. Writes pins.proposed.yaml for human/agent review.
+Resolves the development branch tip (``devel``, otherwise ``main`` / ``master``)
+and the registry digest of the floating development image. Does not pin stable
+or semver releases — those tags are years behind where new features land.
+
+Writes ``pins.proposed.yaml`` for an agent or human to review. The paired notes
+(``release/render-notes.py --proposal``) list the upstream commits to turn into
+a per-component release.
 """
 from __future__ import annotations
 
 import argparse
-import json
 import os
-import re
 import sys
-import urllib.error
-import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -21,73 +22,15 @@ try:
 except ImportError:
     yaml = None
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import upstream  # noqa: E402
+
 
 def load_pins(path: Path) -> dict:
     text = path.read_text(encoding="utf-8")
     if yaml:
         return yaml.safe_load(text)
-    # minimal fallback: not full YAML; require pyyaml in CI
     raise SystemExit("PyYAML required: pip install pyyaml")
-
-
-def dump_pins(data: dict, path: Path) -> None:
-    if not yaml:
-        raise SystemExit("PyYAML required")
-    path.write_text(
-        yaml.safe_dump(data, default_flow_style=False, sort_keys=False),
-        encoding="utf-8",
-    )
-
-
-def github_api(url: str, token: str | None) -> dict | list:
-    req = urllib.request.Request(url)
-    req.add_header("Accept", "application/vnd.github+json")
-    req.add_header("User-Agent", "awx-platform-images-propose-pins")
-    if token:
-        req.add_header("Authorization", f"Bearer {token}")
-    with urllib.request.urlopen(req, timeout=60) as resp:
-        return json.loads(resp.read().decode())
-
-
-def parse_github_repo(repo_url: str) -> tuple[str, str]:
-    # https://github.com/ansible/awx.git → ansible, awx
-    m = re.search(r"github\.com[:/]([^/]+)/([^/.]+)", repo_url)
-    if not m:
-        raise ValueError(f"Not a GitHub URL: {repo_url}")
-    return m.group(1), m.group(2)
-
-
-def resolve_ref(owner: str, repo: str, ref: str, token: str | None) -> str:
-    """Return commit SHA for branch or tag."""
-    # Try commit directly
-    try:
-        data = github_api(
-            f"https://api.github.com/repos/{owner}/{repo}/commits/{ref}",
-            token,
-        )
-        if isinstance(data, dict) and data.get("sha"):
-            return data["sha"]
-    except urllib.error.HTTPError:
-        pass
-    raise RuntimeError(f"Could not resolve {owner}/{repo}@{ref}")
-
-
-def latest_semver_tag(owner: str, repo: str, token: str | None) -> str | None:
-    try:
-        tags = github_api(
-            f"https://api.github.com/repos/{owner}/{repo}/tags?per_page=30",
-            token,
-        )
-    except urllib.error.HTTPError:
-        return None
-    if not isinstance(tags, list):
-        return None
-    semver = re.compile(r"^v?\d+\.\d+(\.\d+)?")
-    for t in tags:
-        name = t.get("name") or ""
-        if semver.match(name):
-            return name
-    return None
 
 
 def main() -> int:
@@ -95,57 +38,88 @@ def main() -> int:
     ap.add_argument("--pins", type=Path, default=Path("pins.yaml"))
     ap.add_argument("--out", type=Path, default=Path("pins.proposed.yaml"))
     ap.add_argument("--github-token", default=os.environ.get("GITHUB_TOKEN"))
-    ap.add_argument(
-        "--prefer-semver-tags",
-        action="store_true",
-        help="If a semver tag exists, pin to that tag tip instead of branch ref",
-    )
     args = ap.parse_args()
 
+    original = args.pins.read_text(encoding="utf-8")
     pins = load_pins(args.pins)
-    proposed = json.loads(json.dumps(pins))  # deep copy via json
-    proposed["updated"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-    proposed["notes"] = "Proposed by release/propose-pins.py — review before merge."
+    updates: dict[str, dict[str, str]] = {}
+    decisions: list[str] = []
+    resolved = 0
+    failed = 0
 
-    decisions = []
     for name, comp in (pins.get("components") or {}).items():
         repo_url = comp.get("repository") or ""
-        ref = comp.get("ref") or "devel"
+        configured = comp.get("ref") or "devel"
         try:
-            owner, repo = parse_github_repo(repo_url)
-        except ValueError as e:
-            decisions.append(f"{name}: skip ({e})")
+            owner, repo = upstream.parse_github_repo(repo_url)
+        except ValueError as exc:
+            decisions.append(f"{name}: skip ({exc})")
+            failed += 1
             continue
 
-        use_ref = ref
-        tag = None
-        if args.prefer_semver_tags:
-            tag = latest_semver_tag(owner, repo, args.github_token)
-            if tag:
-                use_ref = tag
-
         try:
-            sha = resolve_ref(owner, repo, use_ref, args.github_token)
-        except Exception as e:
-            decisions.append(f"{name}: FAILED resolve {use_ref}: {e}")
+            branch, sha = upstream.select_tracking_ref(
+                owner, repo, configured, args.github_token
+            )
+        except Exception as exc:
+            decisions.append(f"{name}: FAILED resolve development branch: {exc}")
+            failed += 1
             continue
 
+        resolved += 1
+        fields: dict[str, str] = {"ref": branch, "commit": sha}
         old = (comp.get("commit") or "").strip()
-        proposed["components"][name]["commit"] = sha
-        if tag:
-            proposed["components"][name]["ref"] = tag
-        if old and old != sha:
-            decisions.append(f"{name}: {old[:12]} → {sha[:12]} (via {use_ref})")
-        elif not old:
-            decisions.append(f"{name}: set commit {sha[:12]} (via {use_ref})")
+        old_ref = (comp.get("ref") or "").strip()
+        if upstream.is_release_tag(old_ref) or old_ref.lower() in upstream.GIT_SKIP:
+            left = f"; left {old_ref} (not a development branch)"
         else:
-            decisions.append(f"{name}: unchanged {sha[:12]}")
+            left = ""
+        if old and (old != sha or old_ref != branch):
+            decisions.append(f"{name}: {old[:12]} → {sha[:12]} via {branch}{left}")
+        elif not old:
+            decisions.append(f"{name}: set commit {sha[:12]} via {branch}{left}")
+        else:
+            decisions.append(f"{name}: unchanged {sha[:12]} via {branch}")
 
-    dump_pins(proposed, args.out)
-    print(f"Wrote {args.out}")
+        public = (comp.get("public_image") or "").strip()
+        if public:
+            suggestion = upstream.suggest_public_image(public)
+            if suggestion.get("digest"):
+                fields["public_image_digest"] = suggestion["digest"]
+                if suggestion.get("ignored_tag"):
+                    fields["public_image"] = f"{suggestion['image']}:{suggestion['tag']}"
+                    decisions.append(
+                        f"{name}: ignored image tag {suggestion['ignored_tag']}; "
+                        f"digest from {suggestion['tag']}"
+                    )
+                old_digest = (comp.get("public_image_digest") or "").strip()
+                short = suggestion["digest"][:19]
+                if old_digest != suggestion["digest"]:
+                    decisions.append(
+                        f"{name}: image {suggestion['image']}:{suggestion['tag']}@{short}…"
+                    )
+                else:
+                    decisions.append(f"{name}: image digest unchanged {short}…")
+            else:
+                decisions.append(
+                    f"{name}: image digest FAILED ({suggestion.get('error')})"
+                )
+        updates[name] = fields
+
+    stamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    try:
+        text, changed = upstream.apply_pin_updates(original, updates, updated=stamp)
+    except ValueError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+
+    args.out.write_text(text, encoding="utf-8")
+    print(f"Wrote {args.out} ({'changes' if changed else 'no pin changes'})")
     print("Decisions:")
-    for d in decisions:
-        print(f"  - {d}")
+    for line in decisions:
+        print(f"  - {line}")
+    if resolved == 0 and failed:
+        return 1
     return 0
 
 

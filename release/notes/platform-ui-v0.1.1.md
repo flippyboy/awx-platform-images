@@ -21,8 +21,8 @@ First commit-SHA pin for `ansible-ui`. 0.1.0 built from floating `devel`; this c
 copy) so the image is reproducible.
 
 Rejected latest GitHub semver tag `v2.4.313` (2023-08-15): ansible-ui no longer
-publishes tags, and that line is years behind `devel`. Cadence still prefers
-semver when tags are current.
+publishes tags, and that line is years behind `devel`. Pins stay on the
+development branch; stable tags are not release candidates.
 
 ## Operator handoff
 

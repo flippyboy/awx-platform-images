@@ -5,7 +5,7 @@ schema_version: 1
 propose_schedule:
   # GitHub Actions cron (UTC)
   cron: "0 9 * * 1"   # Mondays 09:00 UTC
-  description: "Weekly pin proposal against ansible/* default branches / latest tags"
+  description: "Weekly pin proposal against ansible/* development branches (devel or main) and floating image digests"
 
 # Each publishable image has its own version track and git tag prefix.
 # Git tag:  <component>-vX.Y.Z
@@ -24,7 +24,7 @@ release_tracks:
     tag_prefix: "jewel-with-ui-v"
     image: ghcr.io/flippyboy/awx/jewel-with-ui
     cut_when:
-      - "jewel pin / public_image changed since last jewel-with-ui release"
+      - "jewel pin, public_image, or public_image_digest changed since last jewel-with-ui release"
       - "docker/jewel/** changed"
       - "published platform-ui version intentionally bumped for rebake"
       - "manual workflow_dispatch"
@@ -51,17 +51,20 @@ release_tracks:
 # Agent decision preferences (non-binding guidance)
 agent_preferences:
   prefer_commit_sha_over_branch: true
+  # Annotated tags are for *our* releases (platform-ui-v*), not upstream pins.
   prefer_annotated_tags_when_present: true
   # Prefer releasing only components whose upstream pins actually moved
   independent_component_releases: true
   max_components_changed_per_release: 1
   avoid_refs:
     - "HEAD"
-    - "latest"   # as git ref; image tags ok
-  stability:
-    # If upstream tag matches vMAJOR.MINOR.*, prefer newest such tag over floating branch
-    prefer_semver_tags: true
-    semver_tag_globs:
-      awx: ["v[0-9]*", "[0-9]*"]
-      jewel: ["v[0-9]*"]
-      ansible-ui: ["v[0-9]*"]
+    - "latest"   # as a git ref; jewel's *image* tag :latest is the development line
+    - "stable"
+  # Upstream semver tags (awx 24.6.x, ansible-ui v2.4.x) lag devel/main by years.
+  # New features land on the development branch. Pin that tip's commit SHA.
+  track_development_branch: true
+  development_branch_order: [devel, main, master]
+  # Public images: digest of the floating development tag, never a stable version.
+  public_image_tags:
+    awx: devel
+    jewel: latest   # no :devel image; :latest tracks jewel devel

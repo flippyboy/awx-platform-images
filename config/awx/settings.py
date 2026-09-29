@@ -140,3 +140,22 @@ try:
 except Exception:
     pass
 
+# ---------------------------------------------------------------------------
+# About dialog: Automation Controller version
+#
+# Ping reports importlib.metadata of the installed awx package
+# (0.1.dev1+g<sha> on the devel image). Replace get_awx_version with the
+# named version from pins.yaml (CONTROLLER_VERSION overrides).
+# ---------------------------------------------------------------------------
+try:
+    import sys
+
+    _about_dir = '/etc/awx-platform'
+    if _about_dir not in sys.path:
+        sys.path.insert(0, _about_dir)
+    from about_version import install_controller_version
+
+    install_controller_version()
+except Exception as _about_exc:
+    print(f'awx-platform: controller version override skipped: {_about_exc}', file=sys.stderr)
+

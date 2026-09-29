@@ -182,11 +182,12 @@ Nothing below should require commits **inside** `controller/`, `ansible-ui/`, or
 
 | Path | Purpose |
 |------|---------|
-| `config/awx/settings.py` | DB/Redis TCP; **JWT** (`ANSIBLE_BASE_JWT_KEY`, `RESOURCE_SERVER`); **open-license** monkeypatch for UI |
+| `config/awx/settings.py` | DB/Redis TCP; **JWT** (`ANSIBLE_BASE_JWT_KEY`, `RESOURCE_SERVER`); **open-license** monkeypatch for UI; controller About version |
 | `config/awx/nginx.conf` | Listen 8052/8043 → uwsgi/daphne (image default nginx is empty) |
 | `config/awx/redis.conf` | TCP redis for multi-container (upstream defaults use unix socket) |
 | `config/awx/receptor.conf` | `local-only` + control socket + local work type |
-| `config/jewel/settings.py` | CSRF/cookies for compose; Redis TCP without TLS (upstream defaults TLS + unix socket) |
+| `config/jewel/settings.py` | CSRF/cookies for compose; Redis TCP without TLS (upstream defaults TLS + unix socket); platform About version |
+| `config/about_version.py` | Named About versions from `pins.yaml` `published.*` (`PLATFORM_VERSION`, `CONTROLLER_VERSION` override) |
 | `config/jewel/container-startup.yml` | Jewel admin username/password for launch-gateway |
 | `config/envoy/envoy.yaml` | Static clusters to Jewel for REST xDS + gRPC |
 | `config/envoy/envoy-path-rewrite.lua` | Copied from jewel; **required** or Envoy rejects LDS (`Invalid path: …lua`) |
@@ -336,6 +337,27 @@ After controller restart, hard-refresh the browser. Rebuild jewel/UI when you wa
 
 ```bash
 make build-jewel && docker compose up -d --force-recreate jewel
+```
+
+---
+
+## About dialog versions
+
+The Platform UI About dialog reads two ping fields:
+
+| Line | API field | Named version |
+|------|-----------|----------------|
+| `Ansible Automation Platform <version>` | gateway ping `version` | `published.jewel-with-ui.version` |
+| Automation Controller Version | controller `/api/v2/ping/` `version` | `published.awx.version` when that image is published, otherwise the same jewel-with-ui version |
+
+`config/about_version.py` is mounted into Jewel and both controller services and applied from their settings files. `PLATFORM_VERSION` and `CONTROLLER_VERSION` override the pins. The UI bundle stays as-is.
+
+Upstream gateway images report `Unknown` when package metadata is missing, and the devel controller image reports a setuptools-scm string (`0.1.dev1+g…`). With the current pins both lines show **0.1.1**.
+
+Recreate the processes that load settings, then reload the page:
+
+```bash
+docker compose -f compose/docker-compose.yml --project-directory . up -d --force-recreate jewel controller-web controller-task
 ```
 
 ---

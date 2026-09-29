@@ -1,22 +1,29 @@
 # Source of truth for upstream component git refs used in image builds.
 # Agents and CI must not invent forks; only pin ansible/* repositories.
 #
+# Pin the development branch (devel, or main), never a stable semver tag.
+# propose-pins records that branch's tip commit and, for public images,
+# public_image_digest from the floating devel/latest tag.
+#
 # schema_version: 1
 
 schema_version: 1
 updated: "2026-08-26T07:20:00Z"
 notes: >-
-  Independent per-component releases. Prefer commit SHAs for release cuts.
-  Image versions live under published.* and are cut with tags like
-  platform-ui-v0.1.1 / jewel-with-ui-v0.1.1 (not a single images-v* tag).
-  ansible-ui and awx track devel tips: latest GitHub semver tags (v2.4.313 /
-  24.6.1) lag devel by years. Jewel has no tags; track devel.
+  Independent per-component releases. Pin development-branch commit SHAs
+  (devel, or main). Stable semver tags such as awx 24.6.x and ansible-ui
+  v2.4.x lag those branches by years — do not pin them. public_image_digest
+  is the registry digest of the floating development image (awx :devel,
+  jewel :latest). Image versions live under published.* and are cut with
+  tags like platform-ui-v0.1.1 / jewel-with-ui-v0.1.1 (not a single images-v* tag).
 
 registry:
   prefix: ghcr.io/flippyboy/awx
 
 # Last published image versions (independent tracks — bump only what you release).
 # Image tags are clean semver: ghcr.io/flippyboy/awx/<name>:<version>
+# About dialog reads these: platform line is jewel-with-ui.version; the
+# controller line is awx.version when set, otherwise that same version.
 published:
   platform-ui:
     version: "0.1.1"

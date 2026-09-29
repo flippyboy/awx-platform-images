@@ -80,12 +80,16 @@ jobs:
           import os, re, sys, yaml
           from pathlib import Path
 
+          sys.path.insert(0, "release")
+          import upstream
+
           event = os.environ["EVENT_NAME"]
           ref = os.environ.get("REF_NAME", "")
           prefix = os.environ.get("IMAGE_PREFIX", "ghcr.io/flippyboy/awx")
 
           pins = yaml.safe_load(Path("pins.yaml").read_text())
           published = pins.get("published") or {}
+          comps = pins.get("components") or {}
 
           if event == "workflow_dispatch":
               component = os.environ["INPUT_COMPONENT"].strip()
@@ -128,6 +132,14 @@ jobs:
           image = f"{prefix}/{component}"
           sha = f"sha-{os.environ.get('GITHUB_SHA', 'unknown')[:12]}"
 
+          def base_image(name: str, fallback: str) -> str:
+              comp = comps.get(name) or {}
+              public = (comp.get("public_image") or fallback).strip()
+              return upstream.pinned_image_ref(public, comp.get("public_image_digest"))
+
+          jewel_base = base_image("jewel", "ghcr.io/ansible/jewel:latest")
+          awx_base = base_image("awx", "ghcr.io/ansible/awx:devel")
+
           out = os.environ["GITHUB_OUTPUT"]
           with open(out, "a", encoding="utf-8") as f:
               f.write(f"component={component}\n")
@@ -138,8 +150,12 @@ jobs:
               f.write(f"platform_ui_version={platform_ui_version}\n")
               f.write(f"platform_ui_image={prefix}/platform-ui:{platform_ui_version}\n")
               f.write(f"release_name={component} {version}\n")
+              f.write(f"jewel_base={jewel_base}\n")
+              f.write(f"awx_base={awx_base}\n")
 
           print(f"component={component} version={version} image={image}")
+          print(f"jewel_base={jewel_base}")
+          print(f"awx_base={awx_base}")
           if component == "jewel-with-ui":
               print(f"baking platform-ui:{platform_ui_version}")
           PY
@@ -172,7 +188,7 @@ jobs:
           echo "Pulling published UI image: ${UI_IMAGE}"
           docker pull "${UI_IMAGE}"
           docker build -f docker/jewel/Dockerfile \
-            --build-arg JEWEL_BASE=ghcr.io/ansible/jewel:latest \
+            --build-arg JEWEL_BASE="${{ steps.meta.outputs.jewel_base }}" \
             --build-arg UI_IMAGE="${UI_IMAGE}" \
             -t "${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.version }}" \
             -t "${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.sha_tag }}" \
@@ -184,6 +200,7 @@ jobs:
         run: |
           set -euo pipefail
           docker build -f docker/awx/Dockerfile \
+            --build-arg AWX_BASE="${{ steps.meta.outputs.awx_base }}" \
             -t "${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.version }}" \
             -t "${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.sha_tag }}" \
             -t "${{ steps.meta.outputs.image }}:latest" \

@@ -39,7 +39,7 @@ config/                   # compose settings (awx, jewel, …)
 scripts/                  # bootstrap, entrypoints
 release/                  # agent-assisted pin/release tooling
   AGENTS.md               # instructions for coding agents
-  propose-pins.py         # fetch upstream tags / commits
+  propose-pins.py         # devel/main tip SHAs + image digests
   render-notes.py         # generate release notes from pin deltas
   cadence.yaml            # steady-cadence policy
 docs/
@@ -68,8 +68,11 @@ Upstream git checkouts for **source** builds (optional):
 See [`release/AGENTS.md`](./release/AGENTS.md). Short version:
 
 ```bash
-# Propose new upstream pins
+# Propose development-branch pins and a changelog of upstream commits
 python release/propose-pins.py --pins pins.yaml --out pins.proposed.yaml
+python release/render-notes.py \
+  --prev pins.yaml --curr pins.proposed.yaml \
+  --proposal --out release/notes/PROPOSED.md
 
 # After merging pin changes that affect UI only:
 python release/render-notes.py \

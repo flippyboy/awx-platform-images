@@ -51,6 +51,9 @@ x-awx-volumes: &awx-volumes
   - awx-projects:/var/lib/awx/projects
   - ./scripts/entrypoint-awx-web.sh:/usr/local/bin/entrypoint-awx-web.sh:ro
   - ./scripts/entrypoint-awx-task.sh:/usr/local/bin/entrypoint-awx-task.sh:ro
+  # About dialog controller version (published.* in pins.yaml)
+  - ./config/about_version.py:/etc/awx-platform/about_version.py:ro
+  - ./pins.yaml:/etc/awx-platform/pins.yaml:ro
 
 services:
   # ---------------------------------------------------------------------------
@@ -197,6 +200,9 @@ services:
       - ./secrets/tls.crt:/etc/ansible-automation-platform/gateway/gateway.crt:ro
       - ./secrets/tls.key:/etc/ansible-automation-platform/gateway/gateway.key:ro
       - ./config/jewel/settings.py:/etc/ansible-automation-platform/gateway/settings.py:ro
+      # About dialog platform version (published.jewel-with-ui.version)
+      - ./config/about_version.py:/etc/awx-platform/about_version.py:ro
+      - ./pins.yaml:/etc/awx-platform/pins.yaml:ro
       - ./config/jewel/container-startup.yml:/opt/aap_gateway/src/container-startup.yml:ro
       - ./scripts/entrypoint-jewel.sh:/usr/local/bin/entrypoint-jewel.sh:ro
     entrypoint: ["bash", "/usr/local/bin/entrypoint-jewel.sh"]

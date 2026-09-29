@@ -18,7 +18,7 @@ help:
 	@echo "  make up / down      compose stack"
 	@echo "  make trust          JWT bootstrap (compose)"
 	@echo "Release / pins (per-component tags: platform-ui-v*, jewel-with-ui-v*)"
-	@echo "  make pins-propose   write pins.proposed.yaml"
+	@echo "  make pins-propose   propose devel/main pins + release-note changelog"
 	@echo "  make fetch-upstream clone ansible/* at pins into .upstream/"
 	@echo "  git tag platform-ui-vX.Y.Z && git push origin platform-ui-vX.Y.Z"
 	@echo "  git tag jewel-with-ui-vX.Y.Z && git push origin jewel-with-ui-vX.Y.Z"
@@ -47,7 +47,12 @@ trust:
 	@echo "Also run host JWT steps if needed (see docs/compose-README.md)"
 
 pins-propose:
-	python3 release/propose-pins.py --pins pins.yaml --out pins.proposed.yaml --prefer-semver-tags
+	python3 release/propose-pins.py --pins pins.yaml --out pins.proposed.yaml
+	python3 release/render-notes.py \
+		--prev pins.yaml \
+		--curr pins.proposed.yaml \
+		--proposal \
+		--out release/notes/PROPOSED.md
 
 fetch-upstream:
 	./scripts/fetch-upstream.sh
