@@ -29,7 +29,6 @@ COPY ansible-ui/framework ./framework
 COPY ansible-ui/frontend ./frontend
 COPY ansible-ui/platform ./platform
 COPY ansible-ui/locales ./locales
-COPY ansible-ui/webpack ./webpack
 COPY ansible-ui/types ./types
 COPY ansible-ui/babel.config.json ./
 

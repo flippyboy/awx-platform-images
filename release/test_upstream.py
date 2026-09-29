@@ -109,6 +109,9 @@ class PinnedImageTest(unittest.TestCase):
 class ApplyPinUpdatesTest(unittest.TestCase):
     def test_real_pins_keep_comments_and_other_components(self):
         text = (ROOT / "pins.yaml").read_text(encoding="utf-8")
+        loaded_before = yaml.safe_load(text)
+        old_awx = loaded_before["components"]["awx"]["commit"]
+        old_jewel = loaded_before["components"]["jewel"]["commit"]
         digest = "sha256:" + "ab" * 32
         new_commit = "e995e5fc5f92aaaaaaaaaaaaaaaaaaaaaaaaaaaa"
         new, changed = upstream.apply_pin_updates(
@@ -126,10 +129,10 @@ class ApplyPinUpdatesTest(unittest.TestCase):
         self.assertIn("# Controller API image", new)
         self.assertIn("# Prefer setting commit for reproducible releases:", new)
         self.assertIn(f"commit: {new_commit}", new)
-        self.assertNotIn("commit: eb7090dd0f93d48d984c835639834979b5b17028", new)
+        self.assertNotIn(f"commit: {old_awx}", new)
         self.assertIn(f'public_image_digest: "{digest}"', new)
         self.assertIn("public_image: ghcr.io/ansible/jewel:latest", new)
-        self.assertIn("commit: b68b6cabaa2214221c7eff816b1cd9e04061b7db", new)
+        self.assertIn(f"commit: {old_jewel}", new)
         loaded = yaml.safe_load(new)
         self.assertEqual(loaded["components"]["awx"]["ref"], "devel")
         self.assertEqual(loaded["components"]["awx"]["commit"], new_commit)
@@ -185,12 +188,13 @@ class ApplyPinUpdatesTest(unittest.TestCase):
 
     def test_unchanged_pins_are_not_rewritten(self):
         text = (ROOT / "pins.yaml").read_text(encoding="utf-8")
+        current = yaml.safe_load(text)["components"]["awx"]["commit"]
         new, changed = upstream.apply_pin_updates(
             text,
             {
                 "awx": {
                     "ref": "devel",
-                    "commit": "eb7090dd0f93d48d984c835639834979b5b17028",
+                    "commit": current,
                 }
             },
             updated="2099-01-01T00:00:00Z",

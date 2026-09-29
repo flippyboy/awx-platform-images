@@ -128,6 +128,9 @@ ansible-ui `devel` moved 89 commits past the 0.1.1 pin (`6fe43c634d1a` →
 `4c3403d95196`). This cut follows that tip. Stable tags such as `v2.4.313`
 stay off the pin.
 
+The image Dockerfile no longer copies `ansible-ui/webpack`. That directory
+is gone on this pin; the platform build is Vite.
+
 Notable changes in that range: brace-expansion overrides for CVE-2026-14257
 and CVE-2026-69152, workflow-node prompts prefilled from the job template,
 authenticator options on the detail page, rebuilt translation catalogs, and
