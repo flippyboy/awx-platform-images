@@ -8,7 +8,7 @@
 # schema_version: 1
 
 schema_version: 1
-updated: "2026-09-29T14:39:17Z"
+updated: "2026-10-05T17:29:27Z"
 notes: >-
   Independent per-component releases. Pin development-branch commit SHAs
   (devel, or main). Stable semver tags such as awx 24.6.x and ansible-ui
@@ -40,28 +40,28 @@ components:
     repository: https://github.com/ansible/awx.git
     ref: devel
     # Prefer setting commit for reproducible releases:
-    commit: e995e5fc5f925078aab296acda5acb1df39b49d0
+    commit: 33a9eb7d15aedca7222354b68cde834480415913
     # Build policy: use public image instead of rebuilding
     build: false
     public_image: ghcr.io/ansible/awx:devel
-    public_image_digest: "sha256:ae94fd1b7a17d22cd51e60919b4cfe78c549b9e1355aefac776a7d06c651ed3c"
+    public_image_digest: "sha256:010c34221b3fa698e5138fddb911dc23b14901cf122500166c518958fa8e8db6"
     # If build: true, use docker/awx or upstream Dockerfile
     image_name: awx
 
   jewel:
     repository: https://github.com/ansible/jewel.git
     ref: devel
-    commit: e680bd860a58db23380c0b12807d31cab71856ef
+    commit: a5e20b5361f61836e80c8eb4191615fff0d3e527
     build: true
     # Base for jewel-with-ui when not building jewel from source
     public_image: ghcr.io/ansible/jewel:latest
-    public_image_digest: "sha256:ed49c4cbd073eea03914913088fc97d75dcb4628651ca8d1a29b2c8258675ca0"
+    public_image_digest: "sha256:be550b2827c665f2eeda789cec8d146ecc19f47f735f223d459c8e97c85020d9"
     image_name: jewel
 
   ansible-ui:
     repository: https://github.com/ansible/ansible-ui.git
     ref: devel
-    commit: 4c3403d951965d7d0527926f564a122588ef9ece
+    commit: 8651d9537708923684306b5e9a782ac03e46af43
     build: true
     image_name: platform-ui
     # monorepo workspace for Platform UI
