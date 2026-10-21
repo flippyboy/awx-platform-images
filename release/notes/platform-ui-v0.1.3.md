@@ -1,80 +1,24 @@
-# Proposed pin update
+# platform-ui 0.1.3
 
-Proposal for the next **pinned** image release. Upstream stable and semver
-tags are not candidates — those releases lag the branches where new features
-land (`devel`, or `main` when that is the development branch).
+Independent component release. Git tag: `platform-ui-v0.1.3`.
 
-Each git pin is that branch's tip commit. Each public image pin is the
-registry digest of the floating development tag (`devel` / `latest`), not a
-stable version tag.
+Generated from pin delta (`pins.prev.yaml` → `pins.yaml`).
 
-**Review before merge.** This is the input for cutting a release, not the release.
+## Image
 
-Generated from pin delta (`pins.prev.yaml` → `pins.proposed.yaml`).
+`ghcr.io/flippyboy/awx/platform-ui:0.1.3`
 
-## Upstream pins
+## Upstream pins (relevant)
 
-| Upstream | Previous | Proposed | Link |
-|----------|----------|----------|------|
-| awx | `e995e5fc5f92 via devel` | `6fc51b6d25b5 via devel` | [compare](https://github.com/ansible/awx/compare/e995e5fc5f925078aab296acda5acb1df39b49d0...6fc51b6d25b5bf3ad7efa66cc4e62bdb27177027) |
-| jewel | `e680bd860a58 via devel` | `b9eb41abe310 via devel` | [compare](https://github.com/ansible/jewel/compare/e680bd860a58db23380c0b12807d31cab71856ef...b9eb41abe31025e6a3c27fe25c36007a12de877d) |
+| Upstream | Previous | New | Link |
+|----------|----------|-----|------|
 | ansible-ui | `4c3403d95196 via devel` | `78bde81bc413 via devel` | [compare](https://github.com/ansible/ansible-ui/compare/4c3403d951965d7d0527926f564a122588ef9ece...78bde81bc413d092b60052b336aee06eb60e3d3c) |
 
-**3** upstream pin(s) changed.
+**1** relevant upstream pin(s) changed.
 
 ## Upstream commits
 
-Use this list as the release-note changelog when you cut a component.
-Subjects are the upstream commit messages.
-
-### `awx` (`devel`)
-
-`e995e5fc5f92` → `6fc51b6d25b5` — 10 commits. [compare](https://github.com/ansible/awx/compare/e995e5fc5f925078aab296acda5acb1df39b49d0...6fc51b6d25b5bf3ad7efa66cc4e62bdb27177027)
-
-- [`3c76e236c270`](https://github.com/ansible/awx/commit/3c76e236c270b831f0f71465c3e0d7fae040c83a) 2026-09-30 [AAP-93690] Add CleanText validation and OPTIONS patterns to subscription wizard (#16671)
-- [`e4a42b0399a9`](https://github.com/ansible/awx/commit/e4a42b0399a929586060a55e2fac4f8d0ec85f68) 2026-10-02 [AAP-93983] Update schema to add pattern fields for credential types (#16670)
-- [`33a9eb7d15ae`](https://github.com/ansible/awx/commit/33a9eb7d15aedca7222354b68cde834480415913) 2026-10-02 Pin ruff to a compatible release (~=0.16.0) (#16694)
-- [`f8314ada7292`](https://github.com/ansible/awx/commit/f8314ada72926580f2fe465c8eed7d41a726c363) 2026-10-10 [AAP-93974] perf(api): optimize non-superuser job list pagination (#16668)
-- [`918ba2ef36e2`](https://github.com/ansible/awx/commit/918ba2ef36e274e8a58295849eebab572177053e) 2026-10-12 AAP-95887 Use SKIP LOCKED to prevent lock convoy on parent JT update (#16719)
-- [`5613b5ac6c48`](https://github.com/ansible/awx/commit/5613b5ac6c48a05913438cf531d090952886da3a) 2026-10-13 AAP-96085: Decouple collection cache from project cache_id (#16710)
-- [`e5227b4601a0`](https://github.com/ansible/awx/commit/e5227b4601a011874681b108d8943696394328dd) 2026-10-14 Warm the settings cache before measuring bulk host create queries (#16741)
-- [`1ac181813a73`](https://github.com/ansible/awx/commit/1ac181813a73276e4fc12670b8a309cecc1bd95d) 2026-10-14 Add custom last_job_host_summary__failed filter to all host list endpoints (#16699)
-- [`4e1b00898b3a`](https://github.com/ansible/awx/commit/4e1b00898b3aec7813a2240ab8fa3cf30b080bff) 2026-10-15 Complete the FakeRedis test double for the subsystem metrics pipe (#16745)
-- [`6fc51b6d25b5`](https://github.com/ansible/awx/commit/6fc51b6d25b5bf3ad7efa66cc4e62bdb27177027) 2026-10-15 Warm the settings cache before measuring bulk job launch queries (#16744)
-
-### `jewel` (`devel`)
-
-`e680bd860a58` → `b9eb41abe310` — 29 commits. [compare](https://github.com/ansible/jewel/compare/e680bd860a58db23380c0b12807d31cab71856ef...b9eb41abe31025e6a3c27fe25c36007a12de877d)
-
-- [`c0e9eb96e981`](https://github.com/ansible/jewel/commit/c0e9eb96e9811afb28dccd72ee28f74e0c9d0266) 2026-09-30 [AAP-65516] Removing POST option from service_keys endpoint (#235)
-- [`e09ebeded951`](https://github.com/ansible/jewel/commit/e09ebeded951db1e25211d682ecde488855d98b7) 2026-10-01 NO_JIRA: Update quay.io/aap-ci/tekton-catalog/pipeline/test/aap-api-tests:0.1 Docker digest to 9fe7ebd (#261)
-- [`9d11a9fe110c`](https://github.com/ansible/jewel/commit/9d11a9fe110c73f06c6a8a4ae26f88020eb18c54) 2026-10-01 test: exclude bulk-update endpoint from test_request_objects (#262)
-- [`0f1b90f9f39a`](https://github.com/ansible/jewel/commit/0f1b90f9f39ac1bdd314b5f49c5e6b50312f3799) 2026-10-01 [AAP-95395] Upgrade PyJWT to safe version (#263)
-- [`fbcb9fbe8c19`](https://github.com/ansible/jewel/commit/fbcb9fbe8c195331859da8b9c235c48a4ba310d4) 2026-10-02 NO_JIRA: Update quay.io/aap-ci/tekton-catalog/pipeline/test/aap-api-tests:0.1 Docker digest to bd27a48 (#265)
-- [`b9ce7e85eb78`](https://github.com/ansible/jewel/commit/b9ce7e85eb78d9069fe54c4e8d1090ac308b4d86) 2026-10-02 fix(envoy): redirect bare API and service paths to trailing slashes (#234)
-- [`6a4a37fe85f8`](https://github.com/ansible/jewel/commit/6a4a37fe85f81e1e6471487e0739d9a65d5809fe) 2026-10-02 NO_JIRA: Update quay.io/aap-ci/tekton-catalog/pipeline/test/aap-api-tests:0.1 Docker digest to a4ab29e (#266)
-- [`a5e20b5361f6`](https://github.com/ansible/jewel/commit/a5e20b5361f61836e80c8eb4191615fff0d3e527) 2026-10-02 [AAP-38240] Migrate development environment to Podman (#245)
-- [`33f0fa03aa48`](https://github.com/ansible/jewel/commit/33f0fa03aa485551ab838d5f70382ddf063a5335) 2026-10-06 [AAP-93722] add cleantext validation for settings preferences (#251)
-- [`8ab082a453a8`](https://github.com/ansible/jewel/commit/8ab082a453a85c347ffddc110af1ee354d4ff2ed) 2026-10-06 [AAP-95488] Request Envoy specialist reviews (#271)
-- [`6fc577a76c03`](https://github.com/ansible/jewel/commit/6fc577a76c03e0b4095a88f4dc05126f56b889d0) 2026-10-07 Add migration command code owner (#270)
-- [`182dd1ee8f7c`](https://github.com/ansible/jewel/commit/182dd1ee8f7ccee386e68d13320e5768144a5844) 2026-10-08 fix: anchor awk pattern for DAB devel branch lookup (#276)
-- [`f3de3fc4efec`](https://github.com/ansible/jewel/commit/f3de3fc4efec02d98c111ab7c456b42030d30676) 2026-10-08 Support manually built feature CI images (#275)
-- [`a0b52048207a`](https://github.com/ansible/jewel/commit/a0b52048207a443642cc03d65fd8f99347245b0f) 2026-10-08 feat(envoy): Enable X25519MLKEM768 key exchange (#268)
-- [`f79fbb196df4`](https://github.com/ansible/jewel/commit/f79fbb196df466f8c925031dd19c2b99c29892b2) 2026-10-08 [AAP-82819] fix: deduplicate CSRF trusted origins (#273)
-- [`1e95ac30416e`](https://github.com/ansible/jewel/commit/1e95ac30416e130e37fc24b3da91902bc1bfd2b5) 2026-10-08 Fix CI image Podman preflight (#277)
-- [`21a64d4febac`](https://github.com/ansible/jewel/commit/21a64d4febac435fc949f106ac6a128ce73754df) 2026-10-09 [AAP-96061] Add migration upgrade validation CI (#278)
-- [`bc31427e376d`](https://github.com/ansible/jewel/commit/bc31427e376ddba5bcb1c296c729d7180c0b5211) 2026-10-12 [AAP-96929] Fall back via startswith prefix in get_pr_checkout (#287)
-- [`f3f749494544`](https://github.com/ansible/jewel/commit/f3f749494544a4c4bd1e108f91ecb4244f5ff84a) 2026-10-13 [AAP-96856] Pull CI service images from trusted registries instead of Docker Hub (#285)
-- [`e6f932e7277d`](https://github.com/ansible/jewel/commit/e6f932e7277dc68a067d0f7c9bead37c7413e2a7) 2026-10-13 build(deps): upgrade urllib3 to >=2.8.0 (#289)
-- [`bda0d472fddb`](https://github.com/ansible/jewel/commit/bda0d472fddb115d8108df344cc493b90b1a67f5) 2026-10-14 NO_JIRA: Update quay.io/aap-ci/tekton-catalog/pipeline/test/aap-api-tests:0.1 Docker digest to 8214af8 (#286)
-- [`5c9b28cadd6e`](https://github.com/ansible/jewel/commit/5c9b28cadd6e09ae6ee1c193c9d77d19084c1616) 2026-10-14 [AAP-96855] Pull devel observability sidecars from trusted registries instead of Docker Hub (#284)
-- [`45b04e979b69`](https://github.com/ansible/jewel/commit/45b04e979b69f39a2c2887bd181a017c3fbbc506) 2026-10-14 Configure CI image branch selection per repository (#291)
-- [`63129fb4cf5c`](https://github.com/ansible/jewel/commit/63129fb4cf5c501054ca4ca73ad6b7691bf80e66) 2026-10-14 [AAP-96929] Fall back via endswith suffix in get_pr_checkout (#290)
-- [`5e34446ce4ac`](https://github.com/ansible/jewel/commit/5e34446ce4acbd6d32a4c549d223ba5f0b340f0e) 2026-10-15 NO_JIRA: Update quay.io/aap-ci/tekton-catalog/pipeline/test/aap-api-tests:0.1 Docker digest to 4ffd901 (#293)
-- [`cc3bcdf13403`](https://github.com/ansible/jewel/commit/cc3bcdf134037ecd8c0a0429640b942b74551b2b) 2026-10-16 NO_JIRA: Update quay.io/aap-ci/tekton-catalog/pipeline/test/aap-api-tests:0.1 Docker digest to 673c5ba (#294)
-- [`31f57ac5f212`](https://github.com/ansible/jewel/commit/31f57ac5f212adeca13aeef2d8aa999cb7bafac7) 2026-10-19 NO_JIRA: Update quay.io/aap-ci/tekton-catalog/pipeline/test/aap-api-tests:0.1 Docker digest to c94a8ad (#298)
-- [`acecb43bc379`](https://github.com/ansible/jewel/commit/acecb43bc37977631faca49259b4073a980dc3f3) 2026-10-19 fix: migration references (#297)
-- [`b9eb41abe310`](https://github.com/ansible/jewel/commit/b9eb41abe31025e6a3c27fe25c36007a12de877d) 2026-10-19 AAP-94168 immediate sync of assigned permissions (#264)
+Changes on the development branch since the previous pin. This is the changelog for the release.
 
 ### `ansible-ui` (`devel`)
 
@@ -143,52 +87,15 @@ Subjects are the upstream commit messages.
 - [`b031463f6776`](https://github.com/ansible/ansible-ui/commit/b031463f6776403761f0caa84b91098be49d30fc) 2026-10-19 test(e2e): persona switcher — Automation Analytics for normal users (#3760)
 - [`78bde81bc413`](https://github.com/ansible/ansible-ui/commit/78bde81bc413d092b60052b336aee06eb60e3d3c) 2026-10-19 fix(platform): show all visible teams in org role assignment wizard and Teams tab (#3588)
 
-## Public image digests
-
-Resolved from the development tag. Stable version tags are ignored.
-
-| Component | Previous | Proposed | Note |
-|-----------|----------|----------|------|
-| `awx` | `ghcr.io/ansible/awx:devel@sha256:ae94fd1b7a17d22cd51e60919b4cfe78c549b9e1355aefac776a7d06c651ed3c` | `ghcr.io/ansible/awx:devel@sha256:fc3f70c98976f76add3a932844b3c62ad7df373de11f85ba043dd261ae9e7a95` | development tag; stable versions are not used |
-| `jewel` | `ghcr.io/ansible/jewel:latest@sha256:ed49c4cbd073eea03914913088fc97d75dcb4628651ca8d1a29b2c8258675ca0` | `ghcr.io/ansible/jewel:latest@sha256:748fcc338ea3d651601903070bc104bd11a890514cf091da6e46a6be54171ed7` | development tag; stable versions are not used |
-
-## Image tracks to consider
-
-Cut a component tag only after review. Independent trains
-(prefer one component per release unless you mean to rebake):
-
-| Track | Suggested tag | Why |
-|-------|---------------|-----|
-| `platform-ui` | `platform-ui-v0.1.3` | upstream moved: `ansible-ui` |
-| `jewel-with-ui` | `jewel-with-ui-v0.1.3` | upstream moved: `jewel` |
-| `awx` | — | upstream moved, but `components.awx.build` is false — record the digest, do not cut an awx image |
-
-## Agent next step
-
-1. Read the commits above. Hold a pin whose range is empty or unsafe to ship.
-2. Keep `ref` on the development branch. `commit` is that branch's tip.
-   `public_image_digest` is the matching image digest — do not substitute a
-   stable version tag.
-3. Bump `published.<component>.version` only for tracks whose triggers moved.
-4. Render that component's notes (they include this commit list) and add a
-   short narrative at the bottom:
-
-```bash
-python release/render-notes.py \
-  --prev pins.prev.yaml \
-  --curr pins.yaml \
-  --component platform-ui \
-  --version X.Y.Z \
-  --out release/notes/platform-ui-vX.Y.Z.md
-```
-
-5. Ask before tagging (`platform-ui-v*`, `jewel-with-ui-v*`) or publishing.
-
 ## Operator handoff
 
-After a component is actually released:
+1. Bump **only** `platform-ui` in `awx-platform-operator` → `release/pins.consumer.yaml`
+   (tag `0.1.3` + digest once available).
+2. Update Helm chart default image tag for this component if it is a chart default.
+3. Leave other component pins unchanged — they have independent release trains.
+4. Cut an operator release only when the operator itself or chart defaults need a ship.
 
-1. Bump **only** that image in `awx-platform-operator` → `release/pins.consumer.yaml`.
-2. Leave other component pins unchanged.
-3. See `release/AGENTS.md`.
+## Notes
+
+ansible-ui `devel` moved 62 commits past the 0.1.2 pin (`4c3403d95196` → `78bde81bc413`). This cut follows that tip. Notable: OPTIONS-driven validation improvements across forms, dashboard and leaderboard fixes, dependency bumps, and CVE remediation in Hub Insights. The commit list above is the full changelog.
 
