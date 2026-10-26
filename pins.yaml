@@ -15,13 +15,18 @@ notes: >-
   v2.4.x lag those branches by years — do not pin them. public_image_digest
   is the registry digest of the floating development image (awx :devel,
   jewel :latest). Image versions live under published.* and are cut with
-  tags like platform-ui-v0.1.1 / jewel-with-ui-v0.1.1 (not a single images-v* tag).
+  calendar tags like platform-ui-v2026.10.21 / jewel-with-ui-v2026.10.21-1
+  (not a single images-v* tag, and not semver).
 
 registry:
   prefix: ghcr.io/flippyboy/awx
 
 # Last published image versions (independent tracks — bump only what you release).
-# Image tags are clean semver: ghcr.io/flippyboy/awx/<name>:<version>
+# New image tags are calver YYYY.MM.DD (zero-padded month and day, UTC date
+# of the cut): ghcr.io/flippyboy/awx/<name>:YYYY.MM.DD
+# A later cut the same day is YYYY.MM.DD-N, and N starts at 1.
+# Git tag: <name>-vYYYY.MM.DD
+# The 0.1.x values below are the last semver cuts. Do not bump those numbers.
 # About dialog reads these: platform line is jewel-with-ui.version; the
 # controller line is awx.version when set, otherwise that same version.
 published:
@@ -32,7 +37,7 @@ published:
     # platform-ui image version baked into the last jewel-with-ui release
     platform_ui_version: "0.1.3"
   # awx:
-  #   version: "0.1.0"   # only when components.awx.build is true
+  #   version: "2026.10.21"   # only when components.awx.build is true
 
 components:
   awx:

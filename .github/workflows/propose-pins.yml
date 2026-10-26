@@ -49,8 +49,9 @@ jobs:
           title: "chore(pins): propose development-branch pins"
           body: |
             Automated proposal of **development-branch** pins (`devel` or `main`).
-            Stable and semver image tags are not used — those releases are years
-            behind where new features land.
+            Stable and semver upstream tags are not used — those releases are years
+            behind where new features land. Our image tags are calver
+            `YYYY.MM.DD` (same-day recut: `YYYY.MM.DD-N`).
 
             **Review before merge.** This is the input for a pinned release, not the release.
 

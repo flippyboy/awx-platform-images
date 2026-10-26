@@ -7,9 +7,14 @@ Each publishable image has its **own** version and git tag. Do **not** cut a mon
 
 | Component | Git tag | GHCR image |
 |-----------|---------|------------|
-| `platform-ui` | `platform-ui-vX.Y.Z` | `ghcr.io/flippyboy/awx/platform-ui:X.Y.Z` |
-| `jewel-with-ui` | `jewel-with-ui-vX.Y.Z` | `ghcr.io/flippyboy/awx/jewel-with-ui:X.Y.Z` |
-| `awx` (optional) | `awx-vX.Y.Z` | `ghcr.io/flippyboy/awx/awx:X.Y.Z` |
+| `platform-ui` | `platform-ui-vYYYY.MM.DD` | `ghcr.io/flippyboy/awx/platform-ui:YYYY.MM.DD` |
+| `jewel-with-ui` | `jewel-with-ui-vYYYY.MM.DD` | `ghcr.io/flippyboy/awx/jewel-with-ui:YYYY.MM.DD` |
+| `awx` (optional) | `awx-vYYYY.MM.DD` | `ghcr.io/flippyboy/awx/awx:YYYY.MM.DD` |
+
+Image versions are **calver**, not semver. `YYYY.MM.DD` is the UTC date of the cut,
+with zero-padded month and day (`2026.10.21`). A later cut the same day appends
+`-N`, and N starts at 1 (`2026.10.21-1`). The published `0.1.x` tags are the last
+semver cuts. Do not bump those numbers.
 
 `jewel-with-ui` **bakes** a already-published `platform-ui` tag (see
 `published.jewel-with-ui.platform_ui_version`). Releasing UI does not automatically
@@ -23,6 +28,8 @@ rebake jewel; release jewel separately when you want the new UI inside it.
 4. Record **why** a pin moved (security, bugfix, feature) in release notes. The changelog is the upstream commits on the development branch since the previous pin.
 5. Do not push tags or publish packages unless the user explicitly asks.
 6. **Release only components whose inputs changed** (or that the user asked for).
+7. **New image tags are calver** `YYYY.MM.DD`, or `YYYY.MM.DD-N` for another cut that
+   UTC day. Do not mint `0.x.y` image tags.
 
 ## Workflow
 
@@ -60,7 +67,9 @@ Map pin changes → image tracks (`release/cadence.yaml` / `derived.*.release_tr
 | `jewel` / jewel base image | `jewel-with-ui` |
 | `awx` and `build: true` | `awx` |
 
-Bump only that track’s `published.<component>.version` in `pins.yaml`.
+Set only that track’s `published.<component>.version` in `pins.yaml` to the UTC
+calver. The first cut that day is `YYYY.MM.DD`. If that date is already published,
+use `YYYY.MM.DD-1`, then `-2`, and so on.
 
 ### C. Generate release notes (per component)
 
@@ -73,17 +82,25 @@ python release/render-notes.py \
   --prev pins.prev.yaml \
   --curr pins.yaml \
   --component platform-ui \
-  --version 0.1.1 \
-  --out release/notes/platform-ui-v0.1.1.md
+  --version 2026.10.21 \
+  --out release/notes/platform-ui-v2026.10.21.md
 
 # jewel-with-ui example (pin which UI image is baked)
 python release/render-notes.py \
   --prev pins.prev.yaml \
   --curr pins.yaml \
   --component jewel-with-ui \
-  --version 0.1.1 \
-  --platform-ui-version 0.1.1 \
-  --out release/notes/jewel-with-ui-v0.1.1.md
+  --version 2026.10.21 \
+  --platform-ui-version 2026.10.21 \
+  --out release/notes/jewel-with-ui-v2026.10.21.md
+
+# second cut the same UTC day
+python release/render-notes.py \
+  --prev pins.prev.yaml \
+  --curr pins.yaml \
+  --component platform-ui \
+  --version 2026.10.21-1 \
+  --out release/notes/platform-ui-v2026.10.21-1.md
 ```
 
 ### D. Build & release (CI)
@@ -92,15 +109,18 @@ After pins + notes merge to `main`:
 
 ```bash
 # UI only
-git tag platform-ui-v0.1.1 && git push origin platform-ui-v0.1.1
+git tag platform-ui-v2026.10.21 && git push origin platform-ui-v2026.10.21
 
 # Jewel only (pulls published platform-ui from GHCR)
-git tag jewel-with-ui-v0.1.1 && git push origin jewel-with-ui-v0.1.1
+git tag jewel-with-ui-v2026.10.21 && git push origin jewel-with-ui-v2026.10.21
+
+# Later the same day
+git tag platform-ui-v2026.10.21-1 && git push origin platform-ui-v2026.10.21-1
 ```
 
 Or use **Actions → release-images → Run workflow** with component + version.
 
-CI pushes only that image and opens a GitHub Release named e.g. `platform-ui 0.1.1`.
+CI pushes only that image and opens a GitHub Release named e.g. `platform-ui 2026.10.21`.
 The `jewel-with-ui` build pulls `components.jewel.public_image` at `public_image_digest` (the development image, not a stable version).
 
 ### E. Operator handoff

@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import importlib.util
 import unittest
+from datetime import date
 from pathlib import Path
 
 import yaml
 
+import calver
 import upstream
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -288,6 +290,7 @@ class ProposalNotesTest(unittest.TestCase):
             prev_name="pins.prev.yaml",
             curr_name="pins.proposed.yaml",
             commit_logs=logs,
+            today=date(2026, 10, 21),
         )
         text = "\n".join(lines)
         self.assertGreaterEqual(changes, 1)
@@ -295,15 +298,58 @@ class ProposalNotesTest(unittest.TestCase):
         self.assertIn("not candidates", text)
         self.assertIn("fix(data-editor): stop the growth loop", text)
         self.assertIn("Ignored previous ref `v2.4.313`", text)
-        self.assertIn("`platform-ui-v0.1.2`", text)
+        self.assertIn("`platform-ui-v2026.10.21`", text)
+        self.assertIn("`2026.10.21-1`", text)
         self.assertIn("sha256:" + "ab" * 32, text)
         self.assertIn("do not cut an awx image", text)
+        self.assertNotIn("`platform-ui-v0.1.2`", text)
         self.assertNotIn("prefer semver", text.lower())
         self.assertNotIn("newest matching semver", text.lower())
 
-    def test_next_patch(self):
-        self.assertEqual(render_notes.next_patch("0.1.1"), "0.1.2")
-        self.assertEqual(render_notes.next_patch(""), "X.Y.Z")
+    def test_proposal_suggests_micro_when_already_cut_today(self):
+        prev = {
+            "components": {
+                "ansible-ui": {"commit": "a" * 40, "ref": "devel"},
+            }
+        }
+        curr = {
+            "published": {"platform-ui": {"version": "2026.10.21"}},
+            "components": {
+                "ansible-ui": {"commit": "b" * 40, "ref": "devel"},
+            },
+            "derived": {"platform-ui": {"release_triggers": ["ansible-ui"]}},
+        }
+        lines, _ = render_notes.render_proposal(
+            prev=prev,
+            curr=curr,
+            prev_name="pins.prev.yaml",
+            curr_name="pins.proposed.yaml",
+            commit_logs={"ansible-ui": {"skipped": True}},
+            today=date(2026, 10, 21),
+        )
+        self.assertIn("`platform-ui-v2026.10.21-1`", "\n".join(lines))
+
+
+class CalverTest(unittest.TestCase):
+    def test_accepts_zero_padded_date_and_same_day_micro(self):
+        self.assertTrue(calver.is_calver("2026.10.21"))
+        self.assertTrue(calver.is_calver("v2026.10.21-1"))
+        self.assertTrue(calver.is_calver("2026.10.21-12"))
+        self.assertFalse(calver.is_calver("2026.10.21-0"))
+        self.assertFalse(calver.is_calver("2026.10.21-01"))
+        self.assertFalse(calver.is_calver("2026.1.5"))
+        self.assertFalse(calver.is_calver("2026.02.31"))
+        self.assertFalse(calver.is_calver("0.1.3"))
+        self.assertFalse(calver.is_calver("2026.10.21.1"))
+
+    def test_next_image_version_resets_each_utc_day(self):
+        day = date(2026, 10, 21)
+        self.assertEqual(calver.next_image_version("0.1.3", today=day), "2026.10.21")
+        self.assertEqual(calver.next_image_version("2026.10.20", today=day), "2026.10.21")
+        self.assertEqual(calver.next_image_version("2026.10.20-4", today=day), "2026.10.21")
+        self.assertEqual(calver.next_image_version("2026.10.21", today=day), "2026.10.21-1")
+        self.assertEqual(calver.next_image_version("2026.10.21-1", today=day), "2026.10.21-2")
+        self.assertEqual(calver.next_image_version("", today=day), "2026.10.21")
 
     def test_release_notes_include_upstream_commits_and_base_digest(self):
         old = "c" * 40

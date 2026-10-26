@@ -8,8 +8,10 @@ propose_schedule:
   description: "Weekly pin proposal against ansible/* development branches (devel or main) and floating image digests"
 
 # Each publishable image has its own version track and git tag prefix.
-# Git tag:  <component>-vX.Y.Z
-# Image:    ghcr.io/flippyboy/awx/<component>:X.Y.Z
+# Image versions are calver, not semver.
+# Git tag:  <component>-vYYYY.MM.DD
+# Image:    ghcr.io/flippyboy/awx/<component>:YYYY.MM.DD
+# Same-day recut: <component>-vYYYY.MM.DD-N  (N starts at 1)
 release_tracks:
   platform-ui:
     tag_prefix: "platform-ui-v"

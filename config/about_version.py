@@ -3,8 +3,8 @@
 The dialog title is "Ansible Automation Platform <gateway ping version>".
 The Automation Controller row is the controller ping version.
 
-Gateway `get_aap_version()` keeps only major.minor, so "0.1.1" would show
-as "0.1". Replace `get_aap_version` itself.
+Gateway `get_aap_version()` keeps only major.minor, so "2026.10.21-1" would
+show as "2026.10". Replace `get_aap_version` itself.
 
 Controller `get_awx_version()` prefers the installed `awx` package metadata
 over `awx.__version__`. Replace `get_awx_version` on the utils modules the

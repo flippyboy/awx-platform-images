@@ -18,12 +18,12 @@ class PublishedValueTest(unittest.TestCase):
         text = (ROOT / "pins.yaml").read_text(encoding="utf-8")
         self.assertEqual(
             about_version.resolve_platform_version(text, environ={}),
-            "0.1.2",
+            "0.1.3",
         )
         # published.awx.version is commented out; controller shares the platform name.
         self.assertEqual(
             about_version.resolve_controller_version(text, environ={}),
-            "0.1.2",
+            "0.1.3",
         )
         self.assertEqual(about_version.published_value(text, "awx", "version"), "")
 
@@ -70,15 +70,19 @@ class PublishedValueTest(unittest.TestCase):
 
 
 class InstallTest(unittest.TestCase):
-    def test_platform_patch_keeps_patch_version(self):
+    def test_platform_patch_keeps_calendar_version(self):
         name = "aap_gateway_api.version"
         previous = sys.modules.get(name)
         module = type(sys)("aap_gateway_api.version")
-        module.get_aap_version = lambda: ".".join("0.1.1".split(".")[:2])
+        # Upstream keeps major.minor, which drops the day and the same-day micro.
+        module.get_aap_version = lambda: ".".join("2026.10.21-1".split(".")[:2])
         sys.modules[name] = module
         try:
-            self.assertEqual(about_version.install_platform_version("0.1.1"), "0.1.1")
-            self.assertEqual(module.get_aap_version(), "0.1.1")
+            self.assertEqual(
+                about_version.install_platform_version("2026.10.21-1"),
+                "2026.10.21-1",
+            )
+            self.assertEqual(module.get_aap_version(), "2026.10.21-1")
         finally:
             if previous is None:
                 sys.modules.pop(name, None)

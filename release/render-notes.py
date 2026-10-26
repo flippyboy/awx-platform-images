@@ -11,6 +11,7 @@ import argparse
 import os
 import re
 import sys
+from datetime import date
 from pathlib import Path
 
 try:
@@ -20,6 +21,7 @@ except ImportError:
     sys.exit(1)
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import calver  # noqa: E402
 import upstream  # noqa: E402
 
 # Which upstream pins matter for each publishable image
@@ -118,13 +120,6 @@ def relevant_upstreams(component: str, curr: dict) -> list[str]:
     if derived.get("release_triggers"):
         relevant = list(derived["release_triggers"])
     return relevant
-
-
-def next_patch(version: str) -> str:
-    match = re.fullmatch(r"(\d+)\.(\d+)\.(\d+)", (version or "").strip())
-    if not match:
-        return "X.Y.Z"
-    return f"{match.group(1)}.{match.group(2)}.{int(match.group(3)) + 1}"
 
 
 def collect_commit_logs(
@@ -308,6 +303,7 @@ def render_proposal(
     prev_name: str,
     curr_name: str,
     commit_logs: dict[str, dict],
+    today: date | None = None,
 ) -> tuple[list[str], int]:
     pc = prev.get("components") or {}
     cc = curr.get("components") or {}
@@ -360,11 +356,16 @@ def render_proposal(
         lines += image_rows
         lines.append("")
 
+    day = today or calver.utc_today()
+    example = calver.format_calver(day)
     lines += [
         "## Image tracks to consider",
         "",
         "Cut a component tag only after review. Independent trains",
-        "(prefer one component per release unless you mean to rebake):",
+        "(prefer one component per release unless you mean to rebake).",
+        "",
+        "Image versions are calver `YYYY.MM.DD` (zero-padded month and day, UTC).",
+        "Another cut the same day uses `YYYY.MM.DD-N`, and N starts at 1.",
         "",
         "| Track | Suggested tag | Why |",
         "|-------|---------------|-----|",
@@ -392,7 +393,7 @@ def render_proposal(
                 reason = "skipped (`components.awx.build` is false)"
             tag = "—"
         elif moved:
-            version = next_patch(current)
+            version = calver.next_image_version(current, today=day)
             tag = f"`{track}-v{version}`"
             reason = "upstream moved: " + ", ".join(f"`{t}`" for t in moved)
         else:
@@ -408,7 +409,9 @@ def render_proposal(
         "2. Keep `ref` on the development branch. `commit` is that branch's tip.",
         "   `public_image_digest` is the matching image digest — do not substitute a",
         "   stable version tag.",
-        "3. Bump `published.<component>.version` only for tracks whose triggers moved.",
+        "3. Set `published.<component>.version` to the UTC calver only for tracks",
+        "   whose triggers moved. The first cut that day is `YYYY.MM.DD`. A later",
+        f"   cut the same day is `{example}-1`, `{example}-2`, and so on.",
         "4. Render that component's notes (they include this commit list) and add a",
         "   short narrative at the bottom:",
         "",
@@ -417,8 +420,8 @@ def render_proposal(
         "  --prev pins.prev.yaml \\",
         "  --curr pins.yaml \\",
         "  --component platform-ui \\",
-        "  --version X.Y.Z \\",
-        "  --out release/notes/platform-ui-vX.Y.Z.md",
+        f"  --version {example} \\",
+        f"  --out release/notes/platform-ui-v{example}.md",
         "```",
         "",
         "5. Ask before tagging (`platform-ui-v*`, `jewel-with-ui-v*`) or publishing.",
@@ -451,7 +454,10 @@ def main() -> int:
     )
     ap.add_argument(
         "--version",
-        help="Semver for this component, e.g. 0.1.1 (required unless --proposal)",
+        help=(
+            "Calendar version YYYY.MM.DD, or YYYY.MM.DD-N for another cut the "
+            "same day (required unless --proposal)"
+        ),
     )
     ap.add_argument(
         "--platform-ui-version",
@@ -484,6 +490,12 @@ def main() -> int:
             ap.error("--component is required unless --proposal is set")
         if not args.version:
             ap.error("--version is required unless --proposal is set")
+        version = args.version.strip().lstrip("v")
+        if not calver.is_calver(version):
+            ap.error(
+                "--version must be calver YYYY.MM.DD or YYYY.MM.DD-N "
+                "(e.g. 2026.10.21 or 2026.10.21-1)"
+            )
 
     prev, curr = load(args.prev), load(args.curr)
     if args.proposal:
@@ -513,7 +525,7 @@ def main() -> int:
             prev=prev,
             curr=curr,
             component=args.component,
-            version=args.version.lstrip("v"),
+            version=version,
             platform_ui_version=args.platform_ui_version,
             registry_prefix=args.registry_prefix,
             prev_name=args.prev.name,

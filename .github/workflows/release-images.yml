@@ -2,14 +2,17 @@ name: release-images
 
 # Independent per-component releases.
 #
-# Git tags (semver after the component prefix):
-#   platform-ui-v0.1.0
-#   jewel-with-ui-v0.2.0
-#   awx-v0.1.0
+# Git tags (calver after the component prefix):
+#   platform-ui-v2026.10.21
+#   jewel-with-ui-v2026.10.21-1
+#   awx-v2026.10.21
 #
-# GHCR image tags use clean semver only:
-#   ghcr.io/flippyboy/awx/platform-ui:0.1.0
-#   ghcr.io/flippyboy/awx/jewel-with-ui:0.2.0
+# GHCR image tags use the same calendar version:
+#   ghcr.io/flippyboy/awx/platform-ui:2026.10.21
+#   ghcr.io/flippyboy/awx/jewel-with-ui:2026.10.21-1
+#
+# YYYY.MM.DD is the UTC date of the cut (zero-padded month and day).
+# -N is a later cut the same day. N starts at 1.
 #
 # jewel-with-ui bakes a published platform-ui version (does not rebuild UI
 # unless you release platform-ui first). Override with workflow_dispatch input
@@ -32,7 +35,7 @@ on:
           - jewel-with-ui
           - awx
       version:
-        description: Semver for this component (e.g. 0.1.1) — used as image tag
+        description: "Calendar version YYYY.MM.DD, or YYYY.MM.DD-N for another cut the same day"
         required: true
         type: string
       platform_ui_version:
@@ -81,6 +84,7 @@ jobs:
           from pathlib import Path
 
           sys.path.insert(0, "release")
+          import calver
           import upstream
 
           event = os.environ["EVENT_NAME"]
@@ -96,16 +100,20 @@ jobs:
               version = os.environ["INPUT_VERSION"].strip().lstrip("v")
               platform_ui_version = (os.environ.get("INPUT_PLATFORM_UI") or "").strip().lstrip("v")
           else:
-              # tag: <component>-vX.Y.Z  (component may contain hyphens)
+              # tag: <component>-vYYYY.MM.DD or <component>-vYYYY.MM.DD-N
               m = re.fullmatch(r"(platform-ui|jewel-with-ui|awx)-v(.+)", ref)
               if not m:
-                  print(f"::error::Tag {ref!r} does not match <component>-v<semver>", file=sys.stderr)
+                  print(f"::error::Tag {ref!r} does not match <component>-v<calver>", file=sys.stderr)
                   sys.exit(1)
               component, version = m.group(1), m.group(2)
               platform_ui_version = ""
 
-          if not re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+([.-].+)?", version):
-              print(f"::error::Version {version!r} must look like semver (e.g. 0.1.0)", file=sys.stderr)
+          if not calver.is_calver(version):
+              print(
+                  f"::error::Version {version!r} must be calver YYYY.MM.DD "
+                  "or YYYY.MM.DD-N (e.g. 2026.10.21 or 2026.10.21-1)",
+                  file=sys.stderr,
+              )
               sys.exit(1)
 
           if component == "awx" and not (pins.get("components") or {}).get("awx", {}).get("build"):

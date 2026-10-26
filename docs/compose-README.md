@@ -352,7 +352,7 @@ The Platform UI About dialog reads two ping fields:
 
 `config/about_version.py` is mounted into Jewel and both controller services and applied from their settings files. `PLATFORM_VERSION` and `CONTROLLER_VERSION` override the pins. The UI bundle stays as-is.
 
-Upstream gateway images report `Unknown` when package metadata is missing, and the devel controller image reports a setuptools-scm string (`0.1.dev1+g…`). With the current pins both lines show **0.1.1**.
+Upstream gateway images report `Unknown` when package metadata is missing, and the devel controller image reports a setuptools-scm string (`0.1.dev1+g…`). With the current pins both lines show **0.1.3**, the last semver cut. New image versions are calendar versions `YYYY.MM.DD`, with `-N` for another cut the same day.
 
 Recreate the processes that load settings, then reload the page:
 

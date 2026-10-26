@@ -23,11 +23,13 @@ All packages under `ghcr.io/flippyboy/awx/…` (shared namespace with the operat
 
 | Image | Git tag | Description |
 |-------|---------|-------------|
-| `ghcr.io/flippyboy/awx/platform-ui:X.Y.Z` | `platform-ui-vX.Y.Z` | ansible-ui `platform/` workspace + patches |
-| `ghcr.io/flippyboy/awx/jewel-with-ui:X.Y.Z` | `jewel-with-ui-vX.Y.Z` | Jewel base + baked Platform UI |
+| `ghcr.io/flippyboy/awx/platform-ui:YYYY.MM.DD` | `platform-ui-vYYYY.MM.DD` | ansible-ui `platform/` workspace + patches |
+| `ghcr.io/flippyboy/awx/jewel-with-ui:YYYY.MM.DD` | `jewel-with-ui-vYYYY.MM.DD` | Jewel base + baked Platform UI |
 | `ghcr.io/ansible/awx` | — | Default Controller (optional rebuild: `awx-v*` → `ghcr.io/flippyboy/awx/awx`) |
 
-`jewel-with-ui` pulls a **published** `platform-ui` tag at build time (does not rebuild UI in the same release).
+Image tags are calendar versions: `2026.10.21` is the UTC date of the cut. Another
+release that day is `2026.10.21-1`. `jewel-with-ui` pulls a **published**
+`platform-ui` tag at build time (does not rebuild UI in the same release).
 
 ## Layout
 
@@ -77,17 +79,17 @@ python release/render-notes.py \
 # After merging pin changes that affect UI only:
 python release/render-notes.py \
   --prev pins.prev.yaml --curr pins.yaml \
-  --component platform-ui --version 0.1.1 \
-  --out release/notes/platform-ui-v0.1.1.md
-git tag platform-ui-v0.1.1 && git push origin platform-ui-v0.1.1
+  --component platform-ui --version 2026.10.21 \
+  --out release/notes/platform-ui-v2026.10.21.md
+git tag platform-ui-v2026.10.21 && git push origin platform-ui-v2026.10.21
 
 # Later, rebake jewel with that UI (or after jewel pin moves):
 python release/render-notes.py \
   --prev pins.prev.yaml --curr pins.yaml \
-  --component jewel-with-ui --version 0.1.1 \
-  --platform-ui-version 0.1.1 \
-  --out release/notes/jewel-with-ui-v0.1.1.md
-git tag jewel-with-ui-v0.1.1 && git push origin jewel-with-ui-v0.1.1
+  --component jewel-with-ui --version 2026.10.21 \
+  --platform-ui-version 2026.10.21 \
+  --out release/notes/jewel-with-ui-v2026.10.21.md
+git tag jewel-with-ui-v2026.10.21 && git push origin jewel-with-ui-v2026.10.21
 ```
 
 Or use **Actions → release-images → Run workflow** (component + version).

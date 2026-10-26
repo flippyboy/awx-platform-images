@@ -20,8 +20,9 @@ help:
 	@echo "Release / pins (per-component tags: platform-ui-v*, jewel-with-ui-v*)"
 	@echo "  make pins-propose   propose devel/main pins + release-note changelog"
 	@echo "  make fetch-upstream clone ansible/* at pins into .upstream/"
-	@echo "  git tag platform-ui-vX.Y.Z && git push origin platform-ui-vX.Y.Z"
-	@echo "  git tag jewel-with-ui-vX.Y.Z && git push origin jewel-with-ui-vX.Y.Z"
+	@echo "  git tag platform-ui-vYYYY.MM.DD && git push origin platform-ui-vYYYY.MM.DD"
+	@echo "  git tag jewel-with-ui-vYYYY.MM.DD && git push origin jewel-with-ui-vYYYY.MM.DD"
+	@echo "  same-day recut: platform-ui-vYYYY.MM.DD-1"
 
 build-ui:
 	./scripts/prepare-ui-context.sh
