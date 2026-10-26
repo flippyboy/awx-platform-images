@@ -18,12 +18,12 @@ class PublishedValueTest(unittest.TestCase):
         text = (ROOT / "pins.yaml").read_text(encoding="utf-8")
         self.assertEqual(
             about_version.resolve_platform_version(text, environ={}),
-            "0.1.3",
+            "0.1.4",
         )
         # published.awx.version is commented out; controller shares the platform name.
         self.assertEqual(
             about_version.resolve_controller_version(text, environ={}),
-            "0.1.3",
+            "0.1.4",
         )
         self.assertEqual(about_version.published_value(text, "awx", "version"), "")
 
