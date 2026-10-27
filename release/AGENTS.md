@@ -135,7 +135,7 @@ The release workflow does this. It is not a manual pull request.
 - `platform-ui` updates only that pin. The gateway image stays until `jewel-with-ui` is released.
 - `jewel-with-ui` updates the gateway chart and role defaults.
 - `awx` updates the controller pin only when `components.awx.build` is true and this repo published `awx-v*`.
-- The controller otherwise stays `ghcr.io/ansible/awx` pinned by digest. See [`docs/awx-image.md`](../docs/awx-image.md).
+- The controller otherwise stays `ghcr.io/ansible/awx`. The operator repo's `propose-awx-pin` workflow pins that image by the `devel` digest and lists upstream commits in its release notes. Do not copy this repo's awx pin into the operator by hand. See [`docs/awx-image.md`](../docs/awx-image.md).
 
 ## Decision rubric
 
