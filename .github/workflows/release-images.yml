@@ -60,6 +60,12 @@ env:
 jobs:
   release-component:
     runs-on: ubuntu-latest
+    outputs:
+      component: ${{ steps.meta.outputs.component }}
+      version: ${{ steps.meta.outputs.version }}
+      git_tag: ${{ steps.meta.outputs.git_tag }}
+      image: ${{ steps.meta.outputs.image }}
+      digest: ${{ steps.push.outputs.digest }}
     steps:
       - uses: actions/checkout@v7
 
@@ -215,17 +221,26 @@ jobs:
             .
 
       - name: Push component image
+        id: push
         run: |
           set -euo pipefail
           IMG="${{ steps.meta.outputs.image }}"
+          VER="${{ steps.meta.outputs.version }}"
           for t in \
-            "${{ steps.meta.outputs.version }}" \
+            "$VER" \
             "${{ steps.meta.outputs.sha_tag }}" \
             latest
           do
             docker push "${IMG}:${t}"
           done
-          echo "Pushed ${IMG}:{${{ steps.meta.outputs.version }},${{ steps.meta.outputs.sha_tag }},latest}"
+          ref="$(docker image inspect "${IMG}:${VER}" --format '{{index .RepoDigests 0}}')"
+          digest="${ref##*@}"
+          if [[ ! "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+            echo "::error::Could not read a sha256 digest for ${IMG}:${VER} (got ${ref})"
+            exit 1
+          fi
+          echo "digest=${digest}" >> "$GITHUB_OUTPUT"
+          echo "Pushed ${IMG}:{${VER},${{ steps.meta.outputs.sha_tag }},latest} ${digest}"
 
       - name: Write release notes stub
         id: notes
@@ -259,8 +274,9 @@ jobs:
               echo ""
               echo "## Operator handoff"
               echo ""
-              echo "Bump only this image in \`awx-platform-operator\` → \`release/pins.consumer.yaml\`"
-              echo "(\`${COMP}\` tag/digest). Other components can stay on their previous pins."
+              echo "Publishing this image dispatches \`images-released\` on"
+              echo "\`awx-platform-operator\`. That workflow pins this tag and digest"
+              echo "and cuts the operator release. Other component pins stay put."
               echo ""
             } > "$NOTES"
           fi
@@ -278,3 +294,33 @@ jobs:
           generate_release_notes: true
           # For workflow_dispatch without a pre-existing tag, create the tag at this SHA
           target_commitish: ${{ github.sha }}
+
+  # GITHUB_TOKEN cannot start a workflow in another repository.
+  # OPERATOR_RELEASE_TOKEN needs contents:write and workflow scope on
+  # flippyboy/awx-platform-operator (repo + workflow on a classic token).
+  handoff-operator:
+    needs: release-component
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch operator release
+        env:
+          GH_TOKEN: ${{ secrets.OPERATOR_RELEASE_TOKEN }}
+          COMPONENT: ${{ needs.release-component.outputs.component }}
+          VERSION: ${{ needs.release-component.outputs.version }}
+          GIT_TAG: ${{ needs.release-component.outputs.git_tag }}
+          DIGEST: ${{ needs.release-component.outputs.digest }}
+          SOURCE_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${GH_TOKEN}" ]]; then
+            echo "::error::OPERATOR_RELEASE_TOKEN is unset. The image is published, but the operator release was not started."
+            exit 1
+          fi
+          echo "Dispatch images-released ${COMPONENT} ${VERSION} ${DIGEST}"
+          gh api --method POST repos/flippyboy/awx-platform-operator/dispatches \
+            -f event_type=images-released \
+            -f "client_payload[component]=${COMPONENT}" \
+            -f "client_payload[version]=${VERSION}" \
+            -f "client_payload[digest]=${DIGEST}" \
+            -f "client_payload[git_tag]=${GIT_TAG}" \
+            -f "client_payload[source_sha]=${SOURCE_SHA}"

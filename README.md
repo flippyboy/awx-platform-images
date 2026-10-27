@@ -100,5 +100,7 @@ Steady cadence is defined in `release/cadence.yaml` (e.g. weekly pin bump PR).
 
 | Repo | Releases |
 |------|----------|
-| **images** | Per-component tags (`platform-ui-v…`, `jewel-with-ui-v…`) |
-| **operator** | `v0.1.0` — operator image + Helm; pins only the component versions it needs |
+| **images** | Per-component tags (`platform-ui-v…`, `jewel-with-ui-v…`). A successful publish dispatches `images-released`. |
+| **operator** | Calendar tag (`vYYYY.MM.DD`) started by that dispatch, so the chart pins the image that just shipped. `v0.1.13` is the last semver operator release. |
+
+The controller image stays upstream `ghcr.io/ansible/awx` pinned by digest. See [`docs/awx-image.md`](./docs/awx-image.md).

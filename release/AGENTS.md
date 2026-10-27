@@ -123,14 +123,19 @@ Or use **Actions → release-images → Run workflow** with component + version.
 CI pushes only that image and opens a GitHub Release named e.g. `platform-ui 2026.10.21`.
 The `jewel-with-ui` build pulls `components.jewel.public_image` at `public_image_digest` (the development image, not a stable version).
 
+After the image is pushed, `release-images` dispatches `images-released` on
+**awx-platform-operator** with this component, tag, and digest. That repo pins
+the image and pushes the next operator calver tag. Do not open a separate pin
+PR for the same image.
+
 ### E. Operator handoff
 
-Open or draft PR on **awx-platform-operator**:
+The release workflow does this. It is not a manual pull request.
 
-- Update **only** the released image(s) in `release/pins.consumer.yaml`
-- Update Helm chart defaults for those images if needed
-- Reference the component tag(s) (`platform-ui-v…`, `jewel-with-ui-v…`) in operator notes
-- Other component pins stay put
+- `platform-ui` updates only that pin. The gateway image stays until `jewel-with-ui` is released.
+- `jewel-with-ui` updates the gateway chart and role defaults.
+- `awx` updates the controller pin only when `components.awx.build` is true and this repo published `awx-v*`.
+- The controller otherwise stays `ghcr.io/ansible/awx` pinned by digest. See [`docs/awx-image.md`](../docs/awx-image.md).
 
 ## Decision rubric
 

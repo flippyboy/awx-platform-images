@@ -43,12 +43,14 @@ release_tracks:
       - "manual workflow_dispatch"
     depends_on_upstream: [awx]
 
-  # Operator repo is separate; document handoff only
+  # After the image push, release-images dispatches images-released.
+  # The operator repo pins that tag and digest and cuts its own calver release.
   operator_handoff:
     repo: awx-platform-operator
+    event: images-released
     action: >-
-      Open PR bumping only the changed image(s) in chart values +
-      release/pins.consumer.yaml (other components keep their pins)
+      Dispatch consume-image-release with the published component, tag, and
+      digest. The operator workflow bumps only that image, then pushes vYYYY.MM.DD.
 
 # Agent decision preferences (non-binding guidance)
 agent_preferences:
