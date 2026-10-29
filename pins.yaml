@@ -33,7 +33,7 @@ published:
   platform-ui:
     version: "2026.10.29"
   jewel-with-ui:
-    version: "2026.10.29"
+    version: "2026.10.29-1"
     # platform-ui image version baked into the last jewel-with-ui release
     platform_ui_version: "2026.10.29"
   # awx:
