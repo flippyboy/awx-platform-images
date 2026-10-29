@@ -8,13 +8,14 @@ JEWEL_BASE_IMAGE  ?= ghcr.io/ansible/jewel:latest
 AWX_IMAGE         ?= ghcr.io/ansible/awx:devel
 REGISTRY          ?= ghcr.io/flippyboy/awx
 
-.PHONY: help build build-ui build-jewel up down trust pins-propose notes fetch-upstream
+.PHONY: help build build-ui build-jewel build-jewel-base up down trust pins-propose notes fetch-upstream
 
 help:
 	@echo "Images / compose"
 	@echo "  make build          platform-ui + jewel-with-ui"
 	@echo "  make build-ui       platform-ui only"
 	@echo "  make build-jewel    jewel-with-ui (builds UI first)"
+	@echo "  make build-jewel-base  Jewel from ansible/jewel at the pin (then JEWEL_BASE=awx-compose/jewel-base:local)"
 	@echo "  make up / down      compose stack"
 	@echo "  make trust          JWT bootstrap (compose)"
 	@echo "Release / pins (per-component tags: platform-ui-v*, jewel-with-ui-v*)"
@@ -28,6 +29,11 @@ build-ui:
 	./scripts/prepare-ui-context.sh
 	$(DOCKER) build -f .build/ui-context/docker/platform-ui/Dockerfile \
 		-t $(PLATFORM_UI_IMAGE) .build/ui-context
+
+build-jewel-base:
+	./scripts/prepare-jewel-context.sh
+	$(DOCKER) build -f .build/jewel-context/tools/generated/Containerfile \
+		--target jewel -t awx-compose/jewel-base:local .build/jewel-context
 
 build-jewel: build-ui
 	$(DOCKER) build -f docker/jewel/Dockerfile \

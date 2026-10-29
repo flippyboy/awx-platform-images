@@ -243,7 +243,21 @@ def render_release(
             "",
         ]
         jewel = (curr.get("components") or {}).get("jewel") or {}
-        if jewel.get("public_image") or jewel.get("public_image_digest"):
+        if jewel.get("build"):
+            repo = (jewel.get("repository") or "").removesuffix(".git")
+            commit = (jewel.get("commit") or "").strip()
+            lines += [
+                "## Jewel base image",
+                "",
+                f"Built from [`{commit[:12]}`]({repo}/commit/{commit}) with upstream's "
+                "own Containerfile generator (`scripts/prepare-jewel-context.sh`). "
+                "The public `ghcr.io/ansible/jewel:latest` image can lag the source.",
+                "",
+                "`docker/jewel/requirements-security.txt` then upgrades packages that "
+                "upstream still pins at vulnerable versions.",
+                "",
+            ]
+        elif jewel.get("public_image") or jewel.get("public_image_digest"):
             base = upstream.pinned_image_ref(
                 jewel.get("public_image") or "", jewel.get("public_image_digest")
             )

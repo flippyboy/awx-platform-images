@@ -47,7 +47,11 @@ ENV PLATFORM_SERVER=""
 RUN cd platform && npm run build
 
 # --- Runtime ---
-FROM nginx:1.27-alpine AS runtime
+# nginx stable line. 1.27 is end of life and its Alpine base is no longer rebuilt.
+FROM nginx:1.30-alpine AS runtime
+
+# Pick up Alpine security fixes published after the base image was built.
+RUN apk upgrade --no-cache
 
 COPY docker/platform-ui/nginx-default.conf /etc/nginx/conf.d/default.conf
 COPY --from=builder /src/platform/dist /usr/share/nginx/html

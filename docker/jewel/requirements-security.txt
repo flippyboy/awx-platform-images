@@ -1,0 +1,32 @@
+# Security overrides for the Jewel venv (/opt/aap_gateway/venv).
+#
+# ansible/jewel pins these in requirements/requirements.txt at versions with
+# published CVEs. docker/jewel/Dockerfile installs this file over the upstream
+# venv with --no-deps, then runs pip check. Stay inside the ranges upstream
+# declares in requirements/requirements.in. Dependabot updates the pins.
+#
+# Drop a line once the upstream pin reaches the same version.
+#
+# Not overridden, because each needs an upstream change first:
+#   lxml 6        xmlsec is built against lxml's libxml2
+#   oauthlib 4    django-oauth-toolkit 2.3 targets oauthlib 3
+#   social-auth-core 6 / social-auth-app-django 5.6+   major, pip check fails
+#   opentelemetry-api   moves in lockstep with opentelemetry-sdk
+
+# Django>=5.2.8,<5.3 upstream (5.2 LTS). CVE-2026-1207, CVE-2026-1287,
+# CVE-2026-15307, CVE-2026-25673, CVE-2026-33034, CVE-2026-3902 and others.
+django==5.2.18
+# GHSA-6q48-6c7w-9gw2: emSign roots with compromised intermediate keys.
+certifi==2026.10.23
+# CVE-2026-69247, CVE-2026-69249, GHSA-537c-gmf6-5ccf (bundled OpenSSL).
+cryptography==50.0.2
+# CVE-2026-0994. Stays on 5.29.x for the xds protobuf definitions.
+protobuf==5.29.6
+# Vendored wheel (CVE-2026-24049) and jaraco.context (CVE-2026-23949).
+setuptools==84.2.1
+# CVE-2026-45409.
+idna==3.15
+# pyjwt[crypto]>=2.14.0 upstream. CVE-2026-101918, CVE-2026-102275.
+pyjwt==2.15.1
+# The venv's pip 23.2.1: CVE-2023-5752, CVE-2025-8869, CVE-2026-3219 and others.
+pip==26.2.2
