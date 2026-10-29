@@ -23,12 +23,14 @@ RUN dnf -y upgrade --refresh \
  && dnf clean all \
  && rm -rf /var/cache/dnf
 
-# Python packages upstream still pins at vulnerable versions.
+# Python packages upstream still pins at vulnerable versions. Nothing runs pip
+# at runtime, so pip leaves afterwards with its vendored urllib3 and msgpack.
 COPY docker/jewel/requirements-security.txt /tmp/requirements-security.txt
 RUN /opt/aap_gateway/venv/bin/pip install --no-cache-dir --disable-pip-version-check \
       --no-deps -r /tmp/requirements-security.txt \
  && /opt/aap_gateway/venv/bin/pip check \
- && rm /tmp/requirements-security.txt
+ && rm /tmp/requirements-security.txt \
+ && /opt/aap_gateway/venv/bin/python3 -m pip uninstall -y --disable-pip-version-check pip
 
 RUN rm -rf /opt/aap_gateway/platform_ui/*
 COPY --from=ui /usr/share/nginx/html/ /opt/aap_gateway/platform_ui/
