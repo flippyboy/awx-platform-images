@@ -52,7 +52,7 @@ First calendar-version cut, and a security release.
 
 The upstream `ghcr.io/ansible/jewel:latest` image has not been republished since 2026-10-22. Upstream's image workflow fails on the Ubuntu 26.04 runners, where `qemu-user-static` is no longer installable. So the 0.1.4 image shipped Django REST framework 3.15.2 even though jewel `f664db1` already required 3.18.2 or later. This release builds Jewel from the pinned commit instead (`components.jewel.build: true`). That picks up Django REST framework 3.18.3 and the django-ansible-base change that lifted its `<3.16` pin.
 
-`docker/jewel/requirements-security.txt` then upgrades what upstream still pins at vulnerable versions: Django 5.2.18 (5.2 LTS), cryptography 50.0.2, certifi 2026.10.23, protobuf 5.29.6, setuptools 84.2.1, idna 3.15, PyJWT 2.15.1 and pip 26.2.2. `pip check`, `manage.py check` and `makemigrations --check` pass.
+`docker/jewel/requirements-security.txt` then upgrades what upstream still pins at vulnerable versions: Django 5.2.18 (5.2 LTS), cryptography 50.0.2, certifi 2026.10.23, protobuf 5.29.6, setuptools 84.2.1, idna 3.20, PyJWT 2.15.1 and pip 26.2.2. `pip check`, `manage.py check` and `makemigrations --check` pass.
 
 Trivy, HIGH and CRITICAL: 0.1.4 had 1 critical and 17 high. Two high findings remain, and both need an upstream change:
 
