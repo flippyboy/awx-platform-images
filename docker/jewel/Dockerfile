@@ -23,6 +23,12 @@ RUN dnf -y upgrade --refresh \
  && dnf clean all \
  && rm -rf /var/cache/dnf
 
+# Upstream's launch-gateway (a dev-environment script) echoes the admin
+# password to stdout on every start. Log that it was set, not its value. The
+# check fails the build if any line still prints the variable.
+RUN sed -i 's|^\(\s*\)echo "$(timestamp) >>>>>>>> Admin password: ${DJANGO_SUPERUSER_PASSWORD}"$|\1echo "$(timestamp) Admin password set from the mounted secret"|' /usr/bin/launch-gateway \
+ && ! grep -nE 'echo .*\$\{?DJANGO_SUPERUSER_PASSWORD' /usr/bin/launch-gateway
+
 # Python packages upstream still pins at vulnerable versions. Nothing runs pip
 # at runtime, so pip leaves afterwards with its vendored urllib3 and msgpack.
 COPY docker/jewel/requirements-security.txt /tmp/requirements-security.txt
