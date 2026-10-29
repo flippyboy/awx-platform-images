@@ -95,6 +95,12 @@ jobs:
           UI_IMAGE: ${{ steps.pins.outputs.ui }}
         run: |
           set -euo pipefail
+          # A release pull request bakes a platform-ui tag that is published
+          # only after it merges. Build against the newest published UI then.
+          if ! docker manifest inspect "${UI_IMAGE}" >/dev/null 2>&1; then
+            echo "::notice::${UI_IMAGE} is not published yet. Using ${UI_IMAGE%:*}:latest"
+            UI_IMAGE="${UI_IMAGE%:*}:latest"
+          fi
           docker build -f docker/jewel/Dockerfile \
             --build-arg JEWEL_BASE="${BASE}" \
             --build-arg UI_IMAGE="${UI_IMAGE}" \
