@@ -1,0 +1,66 @@
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    labels:
+      - dependencies
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+
+  # platform-ui builder (node) and runtime (nginx). docker/jewel and
+  # docker/awx take their base from a build argument that pins.yaml sets, and
+  # Dependabot does not read ARG-based FROM lines.
+  - package-ecosystem: docker
+    directory: /docker/platform-ui
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    labels:
+      - dependencies
+    groups:
+      docker:
+        patterns:
+          - "*"
+    ignore:
+      # ansible-ui chooses its Node major.
+      - dependency-name: node
+        update-types: ["version-update:semver-major"]
+
+  # Security overrides installed over the Jewel venv. Stay inside the ranges
+  # ansible/jewel declares in requirements/requirements.in.
+  - package-ecosystem: pip
+    directory: /docker/jewel
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    labels:
+      - dependencies
+    groups:
+      jewel-security:
+        patterns:
+          - "*"
+    ignore:
+      # Django>=5.2.8,<5.3 upstream (5.2 LTS).
+      - dependency-name: django
+        versions: [">=5.3"]
+      # The xds protobuf definitions need the 5.29 line.
+      - dependency-name: protobuf
+        versions: [">=5.30"]
+
+  # Release tooling (propose-pins, render-notes, release-images).
+  - package-ecosystem: pip
+    directory: /release
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    labels:
+      - dependencies
+    groups:
+      release-python:
+        patterns:
+          - "*"

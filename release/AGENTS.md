@@ -121,7 +121,7 @@ git tag platform-ui-v2026.10.21-1 && git push origin platform-ui-v2026.10.21-1
 Or use **Actions → release-images → Run workflow** with component + version.
 
 CI pushes only that image and opens a GitHub Release named e.g. `platform-ui 2026.10.21`.
-The `jewel-with-ui` build pulls `components.jewel.public_image` at `public_image_digest` (the development image, not a stable version).
+With `components.jewel.build: true` the `jewel-with-ui` build first builds Jewel from `components.jewel.commit` (`scripts/prepare-jewel-context.sh`). Otherwise it pulls `components.jewel.public_image` at `public_image_digest`. `docker/jewel/requirements-security.txt` is applied on top either way. Drop a line there once upstream's pin reaches that version.
 
 After the image is pushed, `release-images` dispatches `images-released` on
 **awx-platform-operator** with this component, tag, and digest. That repo pins

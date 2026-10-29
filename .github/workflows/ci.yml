@@ -5,6 +5,9 @@ on:
     branches: [main, devel]
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   pins-schema:
     runs-on: ubuntu-latest
@@ -13,7 +16,7 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
-      - run: pip install pyyaml
+      - run: pip install -r release/requirements.txt
       - name: Validate pins.yaml loads
         run: python -c "import yaml; yaml.safe_load(open('pins.yaml')); print('ok')"
       - name: Pin policy unit tests
@@ -25,14 +28,92 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python release/propose-pins.py --pins pins.yaml --out /tmp/pins.proposed.yaml
 
-  docker-build:
+  # Build both images the way release-images does, and report what Trivy
+  # finds. A failed build fails CI.
+  platform-ui:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - name: Build platform-ui (may need network for npm)
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - run: pip install -r release/requirements.txt
+      - name: Build platform-ui at the pinned ansible-ui commit
         run: |
-          docker build -f docker/platform-ui/Dockerfile -t platform-ui:ci . || {
-            echo "UI build failed in CI (expected if heavy); Dockerfile path still validated"
-            # At least syntax-check Dockerfile exists
-            test -f docker/platform-ui/Dockerfile
-          }
+          set -euo pipefail
+          ./scripts/prepare-ui-context.sh
+          CTX=.build/ui-context
+          docker build --pull -f "$CTX/docker/platform-ui/Dockerfile" -t platform-ui:ci "$CTX"
+      - name: Scan image (Trivy)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: platform-ui:ci
+          scanners: vuln
+          severity: HIGH,CRITICAL
+          format: table
+          output: trivy.txt
+          exit-code: "0"
+      - name: Add scan to the job summary
+        run: |
+          { echo "### Trivy: platform-ui"; echo '```'; cat trivy.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+
+  jewel-with-ui:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - run: pip install -r release/requirements.txt
+      - name: Resolve base and baked UI from pins.yaml
+        id: pins
+        run: |
+          python3 - >> "$GITHUB_OUTPUT" <<'PY'
+          import sys, yaml
+          sys.path.insert(0, "release")
+          import upstream
+          pins = yaml.safe_load(open("pins.yaml"))
+          jewel = pins["components"]["jewel"]
+          published = pins.get("published") or {}
+          ui = (published.get("jewel-with-ui") or {}).get("platform_ui_version") \
+              or (published.get("platform-ui") or {}).get("version")
+          prefix = pins["registry"]["prefix"]
+          print(f"build={'true' if jewel.get('build') else 'false'}")
+          print(f"public={upstream.pinned_image_ref(jewel['public_image'], jewel.get('public_image_digest'))}")
+          print(f"ui={prefix}/platform-ui:{ui}")
+          PY
+      - name: Build Jewel base from the pinned source
+        if: steps.pins.outputs.build == 'true'
+        run: |
+          set -euo pipefail
+          ./scripts/prepare-jewel-context.sh
+          CTX=.build/jewel-context
+          docker build --pull -f "$CTX/tools/generated/Containerfile" --target jewel -t jewel-base:ci "$CTX"
+      - name: Build jewel-with-ui
+        env:
+          BASE: ${{ steps.pins.outputs.build == 'true' && 'jewel-base:ci' || steps.pins.outputs.public }}
+          UI_IMAGE: ${{ steps.pins.outputs.ui }}
+        run: |
+          set -euo pipefail
+          # A release pull request bakes a platform-ui tag that is published
+          # only after it merges. Build against the newest published UI then.
+          if ! docker manifest inspect "${UI_IMAGE}" >/dev/null 2>&1; then
+            echo "::notice::${UI_IMAGE} is not published yet. Using ${UI_IMAGE%:*}:latest"
+            UI_IMAGE="${UI_IMAGE%:*}:latest"
+          fi
+          docker build -f docker/jewel/Dockerfile \
+            --build-arg JEWEL_BASE="${BASE}" \
+            --build-arg UI_IMAGE="${UI_IMAGE}" \
+            -t jewel-with-ui:ci .
+      - name: Scan image (Trivy)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: jewel-with-ui:ci
+          scanners: vuln
+          severity: HIGH,CRITICAL
+          format: table
+          output: trivy.txt
+          exit-code: "0"
+      - name: Add scan to the job summary
+        run: |
+          { echo "### Trivy: jewel-with-ui"; echo '```'; cat trivy.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"

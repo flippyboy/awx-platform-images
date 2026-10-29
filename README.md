@@ -13,6 +13,11 @@ This repository **does not fork** application source trees. CI checks out:
 …at pins defined in [`pins.yaml`](./pins.yaml), then builds with **this repo’s Dockerfiles**
 (and optional build-time patches, e.g. open-license UI banner).
 
+Jewel is built from source at the pinned commit with upstream's own Containerfile
+(`scripts/prepare-jewel-context.sh`), because the public `jewel:latest` image can lag
+the source. `docker/jewel/requirements-security.txt` upgrades Python packages that
+upstream still pins at vulnerable versions. CI and every release run Trivy.
+
 Companion product repo: **[awx-platform-operator](https://github.com/flippyboy/awx-platform-operator)**  
 (operator + Helm + CRDs).
 
@@ -38,7 +43,7 @@ pins.yaml                 # source of truth for upstream git refs
 docker/                   # Dockerfiles + UI patches
 compose/                  # docker-compose for local stack testing
 config/                   # compose settings (awx, jewel, …)
-scripts/                  # bootstrap, entrypoints
+scripts/                  # bootstrap, entrypoints, upstream build contexts
 release/                  # agent-assisted pin/release tooling
   AGENTS.md               # instructions for coding agents
   propose-pins.py         # devel/main tip SHAs + image digests

@@ -8,7 +8,7 @@
 # schema_version: 1
 
 schema_version: 1
-updated: "2026-10-26T16:00:00Z"
+updated: "2026-10-29T09:39:22Z"
 notes: >-
   Independent per-component releases. Pin development-branch commit SHAs
   (devel, or main). Stable semver tags such as awx 24.6.x and ansible-ui
@@ -31,11 +31,11 @@ registry:
 # controller line is awx.version when set, otherwise that same version.
 published:
   platform-ui:
-    version: "0.1.4"
+    version: "2026.10.29"
   jewel-with-ui:
-    version: "0.1.4"
+    version: "2026.10.29"
     # platform-ui image version baked into the last jewel-with-ui release
-    platform_ui_version: "0.1.4"
+    platform_ui_version: "2026.10.29"
   # awx:
   #   version: "2026.10.21"   # only when components.awx.build is true
 
@@ -45,18 +45,18 @@ components:
     repository: https://github.com/ansible/awx.git
     ref: devel
     # Prefer setting commit for reproducible releases:
-    commit: edabe5d6eb7d89c87a933dbd51fa28dcc7ca3a0e
+    commit: 8565291e43e17cd1ee5333e82e57aeb230e6574e
     # Build policy: use public image instead of rebuilding
     build: false
     public_image: ghcr.io/ansible/awx:devel
-    public_image_digest: "sha256:e37096528788f78fb8f9ebe1255c8f16fda1b4f0929180a83d40ec6be9319680"
+    public_image_digest: "sha256:db7b4c9b3bd225e6d28c4b210f15c3d4d7799ffb0ab55dc352b5b0b46724a8ab"
     # If build: true, use docker/awx or upstream Dockerfile
     image_name: awx
 
   jewel:
     repository: https://github.com/ansible/jewel.git
     ref: devel
-    commit: f664db1b715e95b5f8f31b28b4bd724f73bc43cb
+    commit: d45bfa9988112739d48ce2e7fda08e0d9d12104a
     build: true
     # Base for jewel-with-ui when not building jewel from source
     public_image: ghcr.io/ansible/jewel:latest
@@ -66,7 +66,7 @@ components:
   ansible-ui:
     repository: https://github.com/ansible/ansible-ui.git
     ref: devel
-    commit: 48e8281db67da5d4a9b63315ee1368d955ed5bc4
+    commit: e7017aada0ba1334f70699aea58012dcfe4fe60a
     build: true
     image_name: platform-ui
     # monorepo workspace for Platform UI

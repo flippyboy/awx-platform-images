@@ -17,6 +17,11 @@ name: release-images
 # jewel-with-ui bakes a published platform-ui version (does not rebuild UI
 # unless you release platform-ui first). Override with workflow_dispatch input
 # platform_ui_version, or pins.yaml published.jewel-with-ui.platform_ui_version.
+#
+# With components.jewel.build true, the Jewel base is built from ansible/jewel
+# at the pinned commit (scripts/prepare-jewel-context.sh). Otherwise the public
+# image at public_image_digest is used. docker/jewel/requirements-security.txt
+# is applied on top either way.
 
 on:
   push:
@@ -72,7 +77,7 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
-      - run: pip install pyyaml
+      - run: pip install -r release/requirements.txt
 
       - name: Resolve component + version
         id: meta
@@ -152,6 +157,7 @@ jobs:
               return upstream.pinned_image_ref(public, comp.get("public_image_digest"))
 
           jewel_base = base_image("jewel", "ghcr.io/ansible/jewel:latest")
+          jewel_build = bool((comps.get("jewel") or {}).get("build"))
           awx_base = base_image("awx", "ghcr.io/ansible/awx:devel")
 
           out = os.environ["GITHUB_OUTPUT"]
@@ -166,9 +172,10 @@ jobs:
               f.write(f"release_name={component} {version}\n")
               f.write(f"jewel_base={jewel_base}\n")
               f.write(f"awx_base={awx_base}\n")
+              f.write(f"jewel_build={'true' if jewel_build else 'false'}\n")
 
           print(f"component={component} version={version} image={image}")
-          print(f"jewel_base={jewel_base}")
+          print(f"jewel_base={jewel_base} (build from source: {jewel_build})")
           print(f"awx_base={awx_base}")
           if component == "jewel-with-ui":
               print(f"baking platform-ui:{platform_ui_version}")
@@ -188,11 +195,30 @@ jobs:
           chmod +x scripts/prepare-ui-context.sh
           ./scripts/prepare-ui-context.sh
           CTX=.build/ui-context
-          docker build -f "$CTX/docker/platform-ui/Dockerfile" \
+          docker build --pull -f "$CTX/docker/platform-ui/Dockerfile" \
             -t "${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.version }}" \
             -t "${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.sha_tag }}" \
             -t "${{ steps.meta.outputs.image }}:latest" \
             "$CTX"
+
+      - name: Build Jewel base from the pinned source
+        id: jewel_base
+        if: steps.meta.outputs.component == 'jewel-with-ui'
+        env:
+          JEWEL_BUILD: ${{ steps.meta.outputs.jewel_build }}
+          PUBLIC_BASE: ${{ steps.meta.outputs.jewel_base }}
+        run: |
+          set -euo pipefail
+          if [[ "${JEWEL_BUILD}" != "true" ]]; then
+            echo "components.jewel.build is false. Using ${PUBLIC_BASE}"
+            echo "image=${PUBLIC_BASE}" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          ./scripts/prepare-jewel-context.sh
+          CTX=.build/jewel-context
+          docker build --pull -f "$CTX/tools/generated/Containerfile" \
+            --target jewel -t jewel-base:release "$CTX"
+          echo "image=jewel-base:release" >> "$GITHUB_OUTPUT"
 
       - name: Build jewel-with-ui
         if: steps.meta.outputs.component == 'jewel-with-ui'
@@ -202,7 +228,7 @@ jobs:
           echo "Pulling published UI image: ${UI_IMAGE}"
           docker pull "${UI_IMAGE}"
           docker build -f docker/jewel/Dockerfile \
-            --build-arg JEWEL_BASE="${{ steps.meta.outputs.jewel_base }}" \
+            --build-arg JEWEL_BASE="${{ steps.jewel_base.outputs.image }}" \
             --build-arg UI_IMAGE="${UI_IMAGE}" \
             -t "${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.version }}" \
             -t "${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.sha_tag }}" \
@@ -219,6 +245,28 @@ jobs:
             -t "${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.sha_tag }}" \
             -t "${{ steps.meta.outputs.image }}:latest" \
             .
+
+      # Report only. Findings that upstream has not fixed must not block a
+      # release. Fixable ones belong in the Dockerfiles or
+      # docker/jewel/requirements-security.txt.
+      - name: Scan image (Trivy)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.version }}
+          scanners: vuln
+          severity: HIGH,CRITICAL
+          format: table
+          output: trivy.txt
+          exit-code: "0"
+
+      - name: Add scan to the job summary
+        run: |
+          {
+            echo "### Trivy: ${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.version }}"
+            echo '```'
+            cat trivy.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Push component image
         id: push
@@ -286,7 +334,7 @@ jobs:
         if: >
           github.event_name == 'push' ||
           github.event.inputs.create_github_release == 'true'
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ steps.meta.outputs.git_tag }}
           name: ${{ steps.meta.outputs.release_name }}
