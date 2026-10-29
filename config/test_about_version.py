@@ -7,6 +7,8 @@ import textwrap
 import unittest
 from pathlib import Path
 
+import yaml
+
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import about_version  # noqa: E402
 
@@ -16,14 +18,16 @@ ROOT = Path(__file__).resolve().parents[1]
 class PublishedValueTest(unittest.TestCase):
     def test_real_pins_use_named_releases(self):
         text = (ROOT / "pins.yaml").read_text(encoding="utf-8")
+        # Every release changes this value, so read it with a real YAML parser.
+        released = str(yaml.safe_load(text)["published"]["jewel-with-ui"]["version"])
         self.assertEqual(
             about_version.resolve_platform_version(text, environ={}),
-            "0.1.4",
+            released,
         )
         # published.awx.version is commented out; controller shares the platform name.
         self.assertEqual(
             about_version.resolve_controller_version(text, environ={}),
-            "0.1.4",
+            released,
         )
         self.assertEqual(about_version.published_value(text, "awx", "version"), "")
 
