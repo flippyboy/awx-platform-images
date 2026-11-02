@@ -8,7 +8,7 @@
 # schema_version: 1
 
 schema_version: 1
-updated: "2026-10-29T09:39:22Z"
+updated: "2026-11-02T19:00:00Z"
 notes: >-
   Independent per-component releases. Pin development-branch commit SHAs
   (devel, or main). Stable semver tags such as awx 24.6.x and ansible-ui
@@ -31,11 +31,11 @@ registry:
 # controller line is awx.version when set, otherwise that same version.
 published:
   platform-ui:
-    version: "2026.10.29"
+    version: "2026.11.02"
   jewel-with-ui:
-    version: "2026.10.29-2"
+    version: "2026.11.02"
     # platform-ui image version baked into the last jewel-with-ui release
-    platform_ui_version: "2026.10.29"
+    platform_ui_version: "2026.11.02"
   # awx:
   #   version: "2026.10.21"   # only when components.awx.build is true
 
@@ -56,7 +56,7 @@ components:
   jewel:
     repository: https://github.com/ansible/jewel.git
     ref: devel
-    commit: d45bfa9988112739d48ce2e7fda08e0d9d12104a
+    commit: a39b016d5bc6846a4d6262d4820dbcc91daf355a
     build: true
     # Base for jewel-with-ui when not building jewel from source
     public_image: ghcr.io/ansible/jewel:latest
@@ -66,7 +66,7 @@ components:
   ansible-ui:
     repository: https://github.com/ansible/ansible-ui.git
     ref: devel
-    commit: e7017aada0ba1334f70699aea58012dcfe4fe60a
+    commit: 8b64849d386e41bfbe1c3ce4d7d2722092cc1039
     build: true
     image_name: platform-ui
     # monorepo workspace for Platform UI
