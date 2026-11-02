@@ -8,7 +8,7 @@
 # schema_version: 1
 
 schema_version: 1
-updated: "2026-11-02T18:54:00Z"
+updated: "2026-11-02T19:00:00Z"
 notes: >-
   Independent per-component releases. Pin development-branch commit SHAs
   (devel, or main). Stable semver tags such as awx 24.6.x and ansible-ui
@@ -31,11 +31,11 @@ registry:
 # controller line is awx.version when set, otherwise that same version.
 published:
   platform-ui:
-    version: "2026.10.29"
+    version: "2026.11.02"
   jewel-with-ui:
-    version: "2026.10.29-2"
+    version: "2026.11.02"
     # platform-ui image version baked into the last jewel-with-ui release
-    platform_ui_version: "2026.10.29"
+    platform_ui_version: "2026.11.02"
   # awx:
   #   version: "2026.10.21"   # only when components.awx.build is true
 
