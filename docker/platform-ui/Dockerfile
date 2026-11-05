@@ -48,7 +48,7 @@ RUN cd platform && npm run build
 
 # --- Runtime ---
 # nginx stable line. 1.27 is end of life and its Alpine base is no longer rebuilt.
-FROM nginx:1.30-alpine AS runtime
+FROM nginx:1.31-alpine AS runtime
 
 # Pick up Alpine security fixes published after the base image was built.
 RUN apk upgrade --no-cache
