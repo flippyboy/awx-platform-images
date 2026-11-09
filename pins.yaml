@@ -1,91 +1,56 @@
-# Source of truth for upstream component git refs used in image builds.
-# Agents and CI must not invent forks; only pin ansible/* repositories.
-#
-# Pin the development branch (devel, or main), never a stable semver tag.
-# propose-pins records that branch's tip commit and, for public images,
-# public_image_digest from the floating devel/latest tag.
-#
-# schema_version: 1
-
 schema_version: 1
-updated: "2026-11-09T19:15:16Z"
-notes: >-
-  Independent per-component releases. Pin development-branch commit SHAs
-  (devel, or main). Stable semver tags such as awx 24.6.x and ansible-ui
-  v2.4.x lag those branches by years — do not pin them. public_image_digest
-  is the registry digest of the floating development image (awx :devel,
-  jewel :latest). Image versions live under published.* and are cut with
-  calendar tags like platform-ui-v2026.10.21 / jewel-with-ui-v2026.10.21-1
-  (not a single images-v* tag, and not semver).
-
+updated: '2026-11-09T19:15:16Z'
+notes: Independent per-component releases. Pin development-branch commit SHAs (devel,
+  or main). Stable semver tags such as awx 24.6.x and ansible-ui v2.4.x lag those
+  branches by years — do not pin them. public_image_digest is the registry digest
+  of the floating development image (awx :devel, jewel :latest). Image versions live
+  under published.* and are cut with calendar tags like platform-ui-v2026.10.21 /
+  jewel-with-ui-v2026.10.21-1 (not a single images-v* tag, and not semver).
 registry:
   prefix: ghcr.io/flippyboy/awx
-
-# Last published image versions (independent tracks — bump only what you release).
-# New image tags are calver YYYY.MM.DD (zero-padded month and day, UTC date
-# of the cut): ghcr.io/flippyboy/awx/<name>:YYYY.MM.DD
-# A later cut the same day is YYYY.MM.DD-N, and N starts at 1.
-# Git tag: <name>-vYYYY.MM.DD
-# The 0.1.x values below are the last semver cuts. Do not bump those numbers.
-# About dialog reads these: platform line is jewel-with-ui.version; the
-# controller line is awx.version when set, otherwise that same version.
 published:
   platform-ui:
-    version: "2026.11.02"
+    version: 2026.11.09
   jewel-with-ui:
-    version: "2026.11.02"
-    # platform-ui image version baked into the last jewel-with-ui release
-    platform_ui_version: "2026.11.02"
-  # awx:
-  #   version: "2026.10.21"   # only when components.awx.build is true
-
+    version: 2026.11.09
+    platform_ui_version: 2026.11.09
 components:
   awx:
-    # Controller API image
     repository: https://github.com/ansible/awx.git
     ref: devel
-    # Prefer setting commit for reproducible releases:
     commit: d4159cab745d1fa6e2247bf3cf7aae4b0546f1b3
-    # Build policy: use public image instead of rebuilding
     build: false
     public_image: ghcr.io/ansible/awx:devel
-    public_image_digest: "sha256:db7b4c9b3bd225e6d28c4b210f15c3d4d7799ffb0ab55dc352b5b0b46724a8ab"
-    # If build: true, use docker/awx or upstream Dockerfile
+    public_image_digest: sha256:db7b4c9b3bd225e6d28c4b210f15c3d4d7799ffb0ab55dc352b5b0b46724a8ab
     image_name: awx
-
   jewel:
     repository: https://github.com/ansible/jewel.git
     ref: devel
     commit: 63f7efe900750b0886ad6b86ee60b6a4aba3058f
     build: true
-    # Base for jewel-with-ui when not building jewel from source
     public_image: ghcr.io/ansible/jewel:latest
-    public_image_digest: "sha256:fed2caa141fc1a158edb180ae2c8c08407c56467179bbc6bdb6c5c8718d0311d"
+    public_image_digest: sha256:fed2caa141fc1a158edb180ae2c8c08407c56467179bbc6bdb6c5c8718d0311d
     image_name: jewel
-
   ansible-ui:
     repository: https://github.com/ansible/ansible-ui.git
     ref: devel
     commit: 6ebe395827b2a20594233d23333613ff2ef6172c
     build: true
     image_name: platform-ui
-    # monorepo workspace for Platform UI
     workspace: platform
-
-# Derived images (built only from pins above + this repo Dockerfiles)
 derived:
   platform-ui:
     image_name: platform-ui
-    depends_on: [ansible-ui]
+    depends_on:
+    - ansible-ui
     dockerfile: docker/platform-ui/Dockerfile
-    # upstream pins that, when changed, justify a platform-ui release
-    release_triggers: [ansible-ui]
-
+    release_triggers:
+    - ansible-ui
   jewel-with-ui:
     image_name: jewel-with-ui
-    depends_on: [jewel, ansible-ui]
+    depends_on:
+    - jewel
+    - ansible-ui
     dockerfile: docker/jewel/Dockerfile
-    # Uses a *published* platform-ui image tag (see published.jewel-with-ui.platform_ui_version)
-    # rather than rebuilding UI in the same release by default.
-    release_triggers: [jewel]
-    # Also re-release when you intentionally bump platform_ui_version after a UI cut.
+    release_triggers:
+    - jewel
