@@ -8,7 +8,7 @@
 # schema_version: 1
 
 schema_version: 1
-updated: "2026-11-02T19:00:00Z"
+updated: "2026-11-09T19:15:16Z"
 notes: >-
   Independent per-component releases. Pin development-branch commit SHAs
   (devel, or main). Stable semver tags such as awx 24.6.x and ansible-ui
@@ -45,7 +45,7 @@ components:
     repository: https://github.com/ansible/awx.git
     ref: devel
     # Prefer setting commit for reproducible releases:
-    commit: 8565291e43e17cd1ee5333e82e57aeb230e6574e
+    commit: d4159cab745d1fa6e2247bf3cf7aae4b0546f1b3
     # Build policy: use public image instead of rebuilding
     build: false
     public_image: ghcr.io/ansible/awx:devel
@@ -56,7 +56,7 @@ components:
   jewel:
     repository: https://github.com/ansible/jewel.git
     ref: devel
-    commit: a39b016d5bc6846a4d6262d4820dbcc91daf355a
+    commit: 63f7efe900750b0886ad6b86ee60b6a4aba3058f
     build: true
     # Base for jewel-with-ui when not building jewel from source
     public_image: ghcr.io/ansible/jewel:latest
@@ -66,7 +66,7 @@ components:
   ansible-ui:
     repository: https://github.com/ansible/ansible-ui.git
     ref: devel
-    commit: 8b64849d386e41bfbe1c3ce4d7d2722092cc1039
+    commit: 6ebe395827b2a20594233d23333613ff2ef6172c
     build: true
     image_name: platform-ui
     # monorepo workspace for Platform UI
