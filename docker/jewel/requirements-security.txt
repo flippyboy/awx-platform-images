@@ -15,7 +15,7 @@
 
 # Django>=5.2.8,<5.3 upstream (5.2 LTS). CVE-2026-1207, CVE-2026-1287,
 # CVE-2026-15307, CVE-2026-25673, CVE-2026-33034, CVE-2026-3902 and others.
-django==5.2.18
+django==5.2.19
 # GHSA-6q48-6c7w-9gw2: emSign roots with compromised intermediate keys.
 certifi==2026.10.23
 # CVE-2026-69247, CVE-2026-69249, GHSA-537c-gmf6-5ccf (bundled OpenSSL).
