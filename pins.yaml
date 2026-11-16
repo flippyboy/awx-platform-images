@@ -10,10 +10,10 @@ registry:
   prefix: ghcr.io/flippyboy/awx
 published:
   platform-ui:
-    version: 2026.11.09
+    version: 2026.11.16
   jewel-with-ui:
-    version: 2026.11.09
-    platform_ui_version: 2026.11.09
+    version: 2026.11.16
+    platform_ui_version: 2026.11.16
 components:
   awx:
     repository: https://github.com/ansible/awx.git
