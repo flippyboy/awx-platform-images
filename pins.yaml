@@ -1,5 +1,5 @@
 schema_version: 1
-updated: "2026-11-23T20:38:36Z"
+updated: '2026-11-23T20:40:00Z'
 notes: Independent per-component releases. Pin development-branch commit SHAs (devel,
   or main). Stable semver tags such as awx 24.6.x and ansible-ui v2.4.x lag those
   branches by years — do not pin them. public_image_digest is the registry digest
@@ -10,10 +10,10 @@ registry:
   prefix: ghcr.io/flippyboy/awx
 published:
   platform-ui:
-    version: 2026.11.16
+    version: 2026.11.23
   jewel-with-ui:
-    version: 2026.11.16
-    platform_ui_version: 2026.11.16
+    version: 2026.11.23
+    platform_ui_version: 2026.11.23
 components:
   awx:
     repository: https://github.com/ansible/awx.git
@@ -21,7 +21,7 @@ components:
     commit: f323b9ae61e5ae4237355bd4b584d52ac55cfdd6
     build: false
     public_image: ghcr.io/ansible/awx:devel
-    public_image_digest: "sha256:2f81c5e63dd291e92166ce831efc0ead567dd042313343dac70e646abe47dbc6"
+    public_image_digest: sha256:2f81c5e63dd291e92166ce831efc0ead567dd042313343dac70e646abe47dbc6
     image_name: awx
   jewel:
     repository: https://github.com/ansible/jewel.git
@@ -29,7 +29,7 @@ components:
     commit: 0438448e3787ca26ae31a16ebd527f1b2ef152e8
     build: true
     public_image: ghcr.io/ansible/jewel:latest
-    public_image_digest: "sha256:e4edb0dd45e1131515691be2db694cdf91c470cde48d0c3ca2b5d496da13b0d2"
+    public_image_digest: sha256:e4edb0dd45e1131515691be2db694cdf91c470cde48d0c3ca2b5d496da13b0d2
     image_name: jewel
   ansible-ui:
     repository: https://github.com/ansible/ansible-ui.git
