@@ -225,8 +225,20 @@ jobs:
         run: |
           set -euo pipefail
           UI_IMAGE="${{ steps.meta.outputs.platform_ui_image }}"
+          # platform-ui and jewel-with-ui tags are often pushed together, so
+          # the UI image may still be building in a parallel run. Wait for it.
           echo "Pulling published UI image: ${UI_IMAGE}"
-          docker pull "${UI_IMAGE}"
+          for attempt in $(seq 1 60); do
+            if docker pull "${UI_IMAGE}"; then
+              break
+            fi
+            if [[ "${attempt}" -eq 60 ]]; then
+              echo "::error::${UI_IMAGE} not available after 30 minutes"
+              exit 1
+            fi
+            echo "Not published yet (attempt ${attempt}/60); retrying in 30s"
+            sleep 30
+          done
           docker build -f docker/jewel/Dockerfile \
             --build-arg JEWEL_BASE="${{ steps.jewel_base.outputs.image }}" \
             --build-arg UI_IMAGE="${UI_IMAGE}" \

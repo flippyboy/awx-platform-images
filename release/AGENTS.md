@@ -71,6 +71,10 @@ Set only that track’s `published.<component>.version` in `pins.yaml` to the UT
 calver. The first cut that day is `YYYY.MM.DD`. If that date is already published,
 use `YYYY.MM.DD-1`, then `-2`, and so on.
 
+Edit `pins.yaml` as text (change the scalar lines in place). Never load it and
+write it back with a YAML dumper (`yaml.safe_dump`, `yq -i`, …): that drops the
+comments and quoting, and CI (`release/test_upstream.py`) fails on it.
+
 ### C. Generate release notes (per component)
 
 The rendered notes include the upstream commit list. Add a short narrative under `## Notes` (why this cut, known issues). Do not replace the commit list with a stable-tag summary.
